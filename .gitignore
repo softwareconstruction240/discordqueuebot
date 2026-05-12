@@ -1,0 +1,8 @@
+#PyCharm files
+.idea/
+
+#Protected Data
+.env
+
+# Local Cache
+__pycache__/
