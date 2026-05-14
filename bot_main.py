@@ -16,15 +16,26 @@ tree = app_commands.CommandTree(client)
 # =========================
 
 class Student:
-    def __init__(self, name, passoff):
+
+    def __init__(
+        self,
+        name,
+        passoff,
+        details=""
+    ):
         self.name = name
         self.passoff = passoff
+        self.details = details
 
     def __eq__(self, value):
         return self.name == value
 
     def __str__(self):
-        return f"{self.name}{' - Passoff' if self.passoff else ''}"
+
+        if self.passoff:
+            return f"{self.name} - Passoff ({self.details})"
+
+        return f"{self.name} - Help: {self.details}"
 
 
 # =========================
@@ -32,6 +43,7 @@ class Student:
 # =========================
 
 class MemoryHelpQueue:
+
     def __init__(self):
         self.queue: list[Student] = []
 
@@ -42,23 +54,28 @@ class MemoryHelpQueue:
         self.queue.remove(student)
 
     def get_position_in_queue(self, student: str):
+
         try:
             return self.queue.index(student) + 1
+
         except ValueError:
             raise IndexError(f"Student {student} not in queue")
 
     def contains(self, student: str):
+
         try:
             self.queue.index(student)
             return True
+
         except ValueError:
             return False
 
     def __str__(self):
+
         if len(self.queue) == 0:
             return "The queue is empty."
 
-        builder = "Students in queue:\n"
+        builder = "Students in queue:\n\n"
 
         for i in range(len(self.queue)):
             builder += f"{i+1}: {self.queue[i]}\n"
@@ -74,7 +91,9 @@ queue = MemoryHelpQueue()
 # =========================
 
 def allowed_channels(interaction: discord.Interaction):
+
     allowed = "help-queue-chat"
+
     return interaction.channel.name == allowed
 
 
@@ -84,23 +103,32 @@ def allowed_channels(interaction: discord.Interaction):
 
 async def join_queue(
     interaction: discord.Interaction,
-    passoff: bool
+    passoff: bool,
+    details: str
 ):
 
     username = interaction.user.display_name
 
     if queue.contains(username):
+
         await interaction.response.send_message(
             "You are already in the queue!",
             ephemeral=True
         )
+
         return
 
-    queue.add_to_queue(Student(username, passoff))
+    queue.add_to_queue(
+        Student(
+            username,
+            passoff,
+            details
+        )
+    )
 
     position = queue.get_position_in_queue(username)
 
-    # proper ordinal suffix
+    # ordinal suffix logic
     if 10 <= position % 100 <= 20:
         suffix = "th"
     else:
@@ -114,6 +142,57 @@ async def join_queue(
         f"You are now {position}{suffix} in the queue!",
         ephemeral=False
     )
+
+
+# =========================
+# Help Modal
+# =========================
+
+class HelpModal(discord.ui.Modal, title="Request Help"):
+
+    description = discord.ui.TextInput(
+        label="What do you need help with?",
+        placeholder="Describe the issue briefly...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=300
+    )
+
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        await join_queue(
+            interaction,
+            False,
+            self.description.value
+        )
+
+
+# =========================
+# Passoff Modal
+# =========================
+
+class PassoffModal(discord.ui.Modal, title="Request Passoff"):
+
+    phase = discord.ui.TextInput(
+        label="Which phase?",
+        placeholder="Example: Phase 3",
+        required=True,
+        max_length=100
+    )
+
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        await join_queue(
+            interaction,
+            True,
+            self.phase.value
+        )
 
 
 # =========================
@@ -135,7 +214,10 @@ class QueueView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button
     ):
-        await join_queue(interaction, False)
+
+        await interaction.response.send_modal(
+            HelpModal()
+        )
 
     @discord.ui.button(
         label="Passoff",
@@ -147,7 +229,10 @@ class QueueView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button
     ):
-        await join_queue(interaction, True)
+
+        await interaction.response.send_modal(
+            PassoffModal()
+        )
 
     @discord.ui.button(
         label="Leave Queue",
@@ -163,10 +248,12 @@ class QueueView(discord.ui.View):
         username = interaction.user.display_name
 
         if not queue.contains(username):
+
             await interaction.response.send_message(
                 "You are not currently in the queue.",
                 ephemeral=True
             )
+
             return
 
         queue.remove_from_queue(username)
@@ -205,10 +292,10 @@ async def queue_panel(interaction: discord.Interaction):
         title="Help Queue",
         description=(
             "Use the buttons below to interact with the queue.\n\n"
-            "🔵 Need Help → General help\n"
-            "🟢 Passoff → Queue for a passoff\n"
+            "🔵 Need Help → Request general help\n"
+            "🟢 Passoff → Request a passoff\n"
             "🔴 Leave Queue → Remove yourself\n"
-            "⚪ View Queue → See current queue"
+            "⚪ View Queue → See the current queue"
         ),
         color=discord.Color.blue()
     )
@@ -239,6 +326,7 @@ async def on_app_command_error(
         )
 
         if allowed_channel:
+
             await interaction.response.send_message(
                 f"Interact with the Help Queue bot in {allowed_channel.mention}",
                 ephemeral=True
