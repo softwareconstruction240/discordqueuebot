@@ -16,26 +16,33 @@ tree = app_commands.CommandTree(client)
 # =========================
 
 class Student:
-
-    def __init__(
-        self,
-        name,
-        passoff,
-        details=""
-    ):
+    def __init__(self, name: str):
         self.name = name
-        self.passoff = passoff
-        self.details = details
+        self.times_helped_today: int = 0
 
     def __eq__(self, value):
         return self.name == value
 
     def __str__(self):
+        return self.name
 
+        
+    
+# =========================
+# Queue Item
+# =========================
+
+class QueueItem:
+    def __init__(self, student: Student, passoff: bool, details: str = ""):
+        self.student = student
+        self.passoff = passoff
+        self.details = details
+
+    def __str__(self):
         if self.passoff:
-            return f"{self.name} - Passoff ({self.details})"
+            return f"{self.student} - Passoff ({self.details})"
 
-        return f"{self.name} - Help: {self.details}"
+        return f"{self.student} - Help: {self.details}"
 
 
 # =========================
@@ -45,30 +52,35 @@ class Student:
 class MemoryHelpQueue:
 
     def __init__(self):
-        self.queue: list[Student] = []
+        self.queue: list[QueueItem] = []
 
-    def add_to_queue(self, student: Student):
-        self.queue.append(student)
+    def add_to_queue(self, queue_item: QueueItem):
+        self.queue.append(queue_item)
 
     def remove_from_queue(self, student: str):
-        self.queue.remove(student)
+        for entry in self.queue:
+            if entry.student.name == student:
+                self.queue.remove(entry)
+                return
+        
+    # TODO: make sure I add QueueItem to the queue and not just a Student 
 
     def get_position_in_queue(self, student: str):
 
-        try:
-            return self.queue.index(student) + 1
+        for i in range(len(self.queue)):
+            if self.queue[i].student.name == student:
+                return i+1
 
-        except ValueError:
-            raise IndexError(f"Student {student} not in queue")
+        raise IndexError(f"Student {student} not in queue")
+
+    def __len__(self):
+        return len(self.queue)
 
     def contains(self, student: str):
-
-        try:
-            self.queue.index(student)
-            return True
-
-        except ValueError:
-            return False
+        for item in self.queue:
+            if item.student.name == student:
+                return True
+        return False
 
     def __str__(self):
 
@@ -78,7 +90,7 @@ class MemoryHelpQueue:
         builder = "Students in queue:\n\n"
 
         for i in range(len(self.queue)):
-            builder += f"{i+1}: {self.queue[i]}\n"
+            builder += f"{i+1}: {self.queue[i].student} - {self.queue[i].details}\n"
 
         return builder
 
@@ -91,11 +103,18 @@ queue = MemoryHelpQueue()
 # =========================
 
 def allowed_channels(interaction: discord.Interaction):
-
     allowed = "help-queue-chat"
-
     return interaction.channel.name == allowed
 
+async def is_in_queue(interaction: discord.Interaction) -> bool:
+    username: str = interaction.user.display_name
+    if queue.contains(username):
+        await interaction.response.send_message(
+            "You are already in the queue!",
+            ephemeral=True
+        )
+        return True
+    return False
 
 # =========================
 # Queue Join Logic
@@ -104,23 +123,13 @@ def allowed_channels(interaction: discord.Interaction):
 async def join_queue(
     interaction: discord.Interaction,
     passoff: bool,
-    details: str
+    details: str,
 ):
-
-    username = interaction.user.display_name
-
-    if queue.contains(username):
-
-        await interaction.response.send_message(
-            "You are already in the queue!",
-            ephemeral=True
-        )
-
-        return
+    username: str = interaction.user.display_name
 
     queue.add_to_queue(
-        Student(
-            username,
+        QueueItem(
+            Student(username),
             passoff,
             details
         )
@@ -129,19 +138,24 @@ async def join_queue(
     position = queue.get_position_in_queue(username)
 
     # ordinal suffix logic
-    if 10 <= position % 100 <= 20:
+    
+
+    await interaction.response.send_message(
+        f"You are now {position}{get_ordinal_suffix(position)} in the queue!",
+        ephemeral=True
+    )
+
+def get_ordinal_suffix(num: int):
+    if 10 <= num % 100 <= 20:
         suffix = "th"
     else:
         suffix = {
             1: "st",
             2: "nd",
             3: "rd"
-        }.get(position % 10, "th")
+        }.get(num % 10, "th")
 
-    await interaction.response.send_message(
-        f"You are now {position}{suffix} in the queue!",
-        ephemeral=False
-    )
+    return suffix
 
 
 # =========================
@@ -151,7 +165,7 @@ async def join_queue(
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
     description = discord.ui.TextInput(
-        label="What do you need help with?",
+        label=f"Enter issue. Queue size: {len(queue)}",
         placeholder="Describe the issue briefly...",
         style=discord.TextStyle.paragraph,
         required=True,
@@ -162,7 +176,6 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         self,
         interaction: discord.Interaction
     ):
-
         await join_queue(
             interaction,
             False,
@@ -175,10 +188,9 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 # =========================
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
-
     phase = discord.ui.TextInput(
-        label="Which phase?",
-        placeholder="Example: Phase 3",
+        label=f"Indicate phase. Queue size: {len(queue)}",
+        placeholder="Phase <5/6>",
         required=True,
         max_length=100
     )
@@ -214,7 +226,10 @@ class QueueView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button
     ):
-
+        already_in_queue: bool = await is_in_queue(interaction)
+        if already_in_queue:
+            return
+        
         await interaction.response.send_modal(
             HelpModal()
         )
@@ -229,7 +244,10 @@ class QueueView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button
     ):
-
+        already_in_queue: bool = await is_in_queue(interaction)
+        if already_in_queue:
+            return
+        
         await interaction.response.send_modal(
             PassoffModal()
         )
@@ -317,16 +335,12 @@ async def on_app_command_error(
 ):
 
     if isinstance(error, app_commands.CheckFailure):
-
         allowed = "help-queue-chat"
-
         allowed_channel = discord.utils.get(
             interaction.guild.channels,
             name=allowed
         )
-
         if allowed_channel:
-
             await interaction.response.send_message(
                 f"Interact with the Help Queue bot in {allowed_channel.mention}",
                 ephemeral=True
