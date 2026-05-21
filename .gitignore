@@ -6,3 +6,6 @@
 
 # Local Cache
 __pycache__/
+
+# Local DB
+queue.db

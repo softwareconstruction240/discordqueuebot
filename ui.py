@@ -87,11 +87,6 @@ class QueueView(discord.ui.View):
         
         await interaction.response.send_modal(PassoffModal())
 
-    @discord.ui.button(label="View Queue", style=discord.ButtonStyle.secondary, custom_id="view_queue")
-    async def view_btn(self, interaction: discord.Interaction, button):
-        text = await interaction.client.queue.view()
-        await interaction.response.send_message(text, ephemeral=True)
-
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.danger, custom_id="leave_queue")
     async def leave_btn(self, interaction: discord.Interaction, button):
         await interaction.client.queue.remove(interaction.user.id)
@@ -112,6 +107,12 @@ class TAView(discord.ui.View):
     async def close(self, interaction: discord.Interaction, button):
         interaction.client.queue.is_open = False
         await interaction.response.send_message("Queue closed.", ephemeral=True)
+
+    @discord.ui.button(label="View Queue", style=discord.ButtonStyle.secondary, custom_id="view_queue")
+    async def view_btn(self, interaction: discord.Interaction, button):
+        text = await interaction.client.queue.view()
+        await interaction.response.send_message(text, ephemeral=True)
+
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.blurple, custom_id="next")
     async def next(self, interaction: discord.Interaction, button):
