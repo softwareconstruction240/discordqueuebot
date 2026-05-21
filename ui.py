@@ -89,8 +89,11 @@ class QueueView(discord.ui.View):
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.danger, custom_id="leave_queue")
     async def leave_btn(self, interaction: discord.Interaction, button):
-        await interaction.client.queue.remove(interaction.user.id)
-        await interaction.response.send_message("Removed from queue.", ephemeral=True)
+        if await interaction.client.queue.is_in_queue(interaction.user.id):
+            await interaction.client.queue.remove(interaction.user.id)
+            await interaction.response.send_message("Removed from queue.", ephemeral=True)
+        else:
+            await interaction.response.send_message("You aren't currently in the queue", ephemeral=True)
 
 
 class TAView(discord.ui.View):
