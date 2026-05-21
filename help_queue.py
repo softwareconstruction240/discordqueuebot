@@ -32,14 +32,23 @@ class HelpQueue:
                     return True
         return False
 
-    async def next(self, passoff_only=False) -> Optional[QueueEntry]:
+    async def next(self, passoff_only=False, online_only=False) -> Optional[QueueEntry]:
         async with self.lock:
             if passoff_only:
                 for i, e in enumerate(self.entries):
                     if e.is_passoff:
-                        return self.entries.pop(i)
+                        if online_only and e.in_person:
+                            return None
+                        else:
+                            return self.entries.pop(i)
 
-            return self.entries.pop(0) if self.entries else None
+            elif online_only:
+                for i, e in enumerate(self.entries):
+                    if not e.in_person:
+                        return self.entries.pop(i)
+                return None
+            else:
+                return self.entries.pop(0) if self.entries else None
 
     async def view(self) -> str:
         async with self.lock:

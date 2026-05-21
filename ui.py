@@ -153,6 +153,21 @@ class TAView(discord.ui.View):
             ephemeral=True
         )
 
+    @discord.ui.button(label="Next Online", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
+    async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
+        entry: Optional[QueueEntry] = await interaction.client.queue.next(online_only=True)
+
+        if not entry:
+            return await interaction.response.send_message("No online students available.", ephemeral=True)
+
+        if not entry.is_passoff:
+            increment_help(entry.user_id, entry.username)
+
+        await interaction.response.send_message(
+            f"{entry.username} is next. Go help them!",
+            ephemeral=True
+        )
+
     @discord.ui.button(label="Student Info", style=discord.ButtonStyle.red, custom_id="student_info")
     async def student_info(self, interaction: discord.Interaction, button):
         info: tuple = get_student_info()
