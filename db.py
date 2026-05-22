@@ -69,4 +69,6 @@ def get_student_info() -> tuple[list]:
     return result
 
 def get_times_helped_today(user_id: int) -> int:
-    cursor.execute("SELECT daily_help FROM user_stats WHERE user_id=?", user_id)
+    cursor.execute("SELECT daily_help FROM user_stats WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
+    return row[0] if row else 0

@@ -1,7 +1,7 @@
 from typing import Optional
 
 import discord
-from db import increment_help, get_student_info
+from db import increment_help, get_student_info, get_times_helped_today
 from records import QueueEntry
 from modals import HelpModal, PassoffModal, ClearConfirmModal
 
@@ -22,7 +22,8 @@ class QueueView(discord.ui.View):
                 "You are already in the queue.", ephemeral=True
             )
 
-        await interaction.response.send_modal(HelpModal())
+        today_help_count = get_times_helped_today(interaction.user.id)
+        await interaction.response.send_modal(HelpModal(today_help_count))
 
     @discord.ui.button(label="Passoff", style=discord.ButtonStyle.success, custom_id="passoff")
     async def passoff_btn(self, interaction: discord.Interaction, button):

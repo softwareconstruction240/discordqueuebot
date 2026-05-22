@@ -13,6 +13,17 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         max_length=1
     )
 
+    def __init__(self, times_helped: int):
+        super().__init__()
+        self.add_item(discord.ui.TextDisplay(
+            f"You've been helped {times_helped} time{'s' if times_helped != 1 else ''} today."
+        ))
+        if times_helped >= 2:
+            self.add_item(discord.ui.TextDisplay(
+                "Warning: the max times you can be helped in a day is 3, "
+                "but TAs may still help you if they think it is necessary."
+            ))
+
     async def on_submit(self, interaction: discord.Interaction):
         value = self.in_person.value.lower()
         if value not in ("o", "p"):
