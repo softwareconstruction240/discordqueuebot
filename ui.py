@@ -33,6 +33,10 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             value == "p"
         )
 
+        for channel in interaction.guild.channels:
+            if channel.name == "ta-bot-chat":
+                await channel.send(f"{interaction.user.display_name} has joined the help queue - {"In-person" if value=="p" else "Online"} - {self.question.value}")
+
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
@@ -54,6 +58,11 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             True,
             self.in_person.value.lower() == "p"
         )
+
+        for channel in interaction.guild.channels:
+            if channel.name == "ta-bot-chat":
+                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.question.value}")
+
 
 class QueueView(discord.ui.View):
     def __init__(self):
@@ -148,7 +157,7 @@ class TAView(discord.ui.View):
             increment_help(entry.user_id, entry.username)
 
         await interaction.response.send_message(
-            f"{entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
+            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
             ephemeral=True
         )
 
@@ -163,7 +172,7 @@ class TAView(discord.ui.View):
             increment_help(entry.user_id, entry.username)
 
         await interaction.response.send_message(
-            f"{entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
+            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
             ephemeral=True
         )
     
@@ -175,7 +184,7 @@ class TAView(discord.ui.View):
             return await interaction.response.send_message("No students awaiting passoff.", ephemeral=True)
 
         await interaction.response.send_message(
-            f"{entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
+            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
             ephemeral=True
         )
 
@@ -187,7 +196,7 @@ class TAView(discord.ui.View):
             return await interaction.response.send_message("No students awaiting online passoff.", ephemeral=True)
 
         await interaction.response.send_message(
-            f"{entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
+            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
             ephemeral=True
         )
 
