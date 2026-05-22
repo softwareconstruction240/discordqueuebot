@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from help_queue import HelpQueue
 from ui import QueueView, TAView
-from models import QueueEntry
+from dataclasses import QueueEntry
 from datetime import datetime
 from db import daily_reset
 

@@ -1,6 +1,6 @@
 import asyncio
 from typing import Optional
-from models import QueueEntry
+from dataclasses import QueueEntry
 
 class HelpQueue:
     def __init__(self):
