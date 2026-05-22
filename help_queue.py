@@ -62,3 +62,7 @@ class HelpQueue:
                 out.append(f"{i}. {e.username} - {p_tag} - {o_tag} - {e.details}")
 
             return "\n".join(out)
+        
+    async def clear(self):
+        async with self.lock:
+            self.entries.clear()

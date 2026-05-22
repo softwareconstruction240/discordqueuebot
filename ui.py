@@ -37,7 +37,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             if channel.name == "ta-bot-chat":
                 await channel.send(f"{interaction.user.display_name} has joined the help queue - {"In-person" if value=="p" else "Online"} - {self.question.value}",
                                    # disappear after 30 minutes
-                                    timeout=60*30)
+                                    delete_after=60*30)
 
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
@@ -63,10 +63,23 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
         for channel in interaction.guild.channels:
             if channel.name == "ta-bot-chat":
-                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.question.value}",
+                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.phase.value}",
                                    # disappear after 30 minutes
-                                   timeout=60*30)
-
+                                   delete_after=60*30)
+                
+class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
+    warning = discord.ui.TextDisplay("Are you sure? This will remove all students from the queue, and cannot be undone.")
+    confirmation = discord.ui.TextInput(label="Please confirm", placeholder="y/n", max_length=1)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        if self.confirmation.value.lower() != 'y':
+            await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=30)
+        else:
+            await interaction.client.queue.clear()
+            await interaction.response.send_message("Queue cleared", delete_after=60*10)
+            for channel in interaction.guild.channels:
+                if channel.name == "help-queue-chat":
+                    await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*20)
 
 class QueueView(discord.ui.View):
     def __init__(self):
@@ -120,12 +133,12 @@ class TAView(discord.ui.View):
     async def open(self, interaction: discord.Interaction, button):
         if not interaction.client.queue.is_open:
             interaction.client.queue.is_open = True
-            await interaction.response.send_message("Queue opened.", ephemeral=True)
+            await interaction.response.send_message("Queue opened.", ephemeral=True, delete_after=60*60*12)
             for channel in interaction.guild.channels:
                 if channel.name == "help-queue-chat":
                     if channel.last_message is not None and channel.last_message.content == self.close_msg:
                         await channel.last_message.delete()
-                    await channel.send(self.open_msg)
+                    await channel.send(self.open_msg, delete_after=60*60*12)
                     return
         else:
             await interaction.response.send_message("Queue is already open!", ephemeral=True)
@@ -139,7 +152,7 @@ class TAView(discord.ui.View):
                 if channel.name == "help-queue-chat":
                     if channel.last_message is not None and channel.last_message.content == self.open_msg:
                         await channel.last_message.delete()
-                    await channel.send(self.close_msg)
+                    await channel.send(self.close_msg, delete_after=60*60*12)
                     return
         else:
             await interaction.response.send_message("Queue is already closed!", ephemeral=True)
@@ -220,6 +233,10 @@ class TAView(discord.ui.View):
         
         builder+="```"
         await interaction.response.send_message(builder, ephemeral=True)
+
+    @discord.ui.button(label="Clear Queue", style=discord.ButtonStyle.danger, custom_id="clear_queue", emoji="💥")
+    async def clear_queue(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(ClearConfirmModal())
 
 def fixed_width(text: str, width: int) -> str:
     if len(text) > width:
