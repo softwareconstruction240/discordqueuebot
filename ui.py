@@ -35,7 +35,9 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
         for channel in interaction.guild.channels:
             if channel.name == "ta-bot-chat":
-                await channel.send(f"{interaction.user.display_name} has joined the help queue - {"In-person" if value=="p" else "Online"} - {self.question.value}")
+                await channel.send(f"{interaction.user.display_name} has joined the help queue - {"In-person" if value=="p" else "Online"} - {self.question.value}",
+                                   # disappear after 30 minutes
+                                    timeout=60*30)
 
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
@@ -61,7 +63,9 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
         for channel in interaction.guild.channels:
             if channel.name == "ta-bot-chat":
-                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.question.value}")
+                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.question.value}",
+                                   # disappear after 30 minutes
+                                   timeout=60*30)
 
 
 class QueueView(discord.ui.View):
