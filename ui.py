@@ -98,13 +98,7 @@ class TAView(discord.ui.View):
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username)
 
-        await notify_tas(interaction, f"{interaction.user.display_name} is now helping {entry.username}")
-
-        await interaction.response.send_message(
-            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
-            ephemeral=True,
-            delete_after=60*5
-        )
+        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
 
         await move_to_breakout(interaction, entry)
 
@@ -118,13 +112,7 @@ class TAView(discord.ui.View):
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username)
 
-        await notify_tas(interaction, f"{interaction.user.display_name} is now helping {entry.username}")
-
-        await interaction.response.send_message(
-            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
-            ephemeral=True,
-            delete_after=60*5
-        )
+        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
 
         await move_to_breakout(interaction, entry)
 
@@ -136,14 +124,7 @@ class TAView(discord.ui.View):
         if not entry:
             return await interaction.response.send_message("No students awaiting passoff.", ephemeral=True, delete_after=10)
 
-        await notify_tas(interaction, f"{interaction.user.display_name} is now helping {entry.username}")
-
-
-        await interaction.response.send_message(
-            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
-            ephemeral=True,
-            delete_after=60*5
-        )
+        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
 
         await move_to_breakout(interaction, entry)
 
@@ -155,14 +136,7 @@ class TAView(discord.ui.View):
         if not entry:
             return await interaction.response.send_message("No students awaiting online passoff.", ephemeral=True, delete_after=10)
 
-        await notify_tas(interaction, f"{interaction.user.display_name} is now helping {entry.username}")
-
-
-        await interaction.response.send_message(
-            f"You are now helping: {entry.username} - {"In-Person" if entry.in_person else "Online"} - {"Passoff - " if entry.is_passoff else ""}{entry.details}",
-            ephemeral=True,
-            delete_after=60*5
-        )
+        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
         await move_to_breakout(interaction, entry)
 
@@ -208,7 +182,9 @@ def get_channel(interaction: discord.Interaction, channel_name: str):
     for channel in interaction.guild.channels:
         if channel.name == channel_name:
             return channel
-            
+        
+
+# currently redundant
 async def notify_tas(interaction: discord.Interaction, msg: str):
     ta_chat: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
     await ta_chat.send(msg, delete_after=60*10)
