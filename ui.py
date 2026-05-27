@@ -98,9 +98,10 @@ class TAView(discord.ui.View):
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username)
 
-        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
-
         await move_to_breakout(interaction, entry)
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
     @discord.ui.button(label="Next Online", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -112,9 +113,10 @@ class TAView(discord.ui.View):
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username)
 
-        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
-
         await move_to_breakout(interaction, entry)
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
     
     @discord.ui.button(label="Next Passoff", style=discord.ButtonStyle.blurple, custom_id="next_passoff", emoji="✅")
@@ -124,9 +126,10 @@ class TAView(discord.ui.View):
         if not entry:
             return await interaction.response.send_message("No students awaiting passoff.", ephemeral=True, delete_after=10)
 
-        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}")
-
         await move_to_breakout(interaction, entry)
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
 
     @discord.ui.button(label="Next Online Passoff", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
@@ -136,9 +139,11 @@ class TAView(discord.ui.View):
         if not entry:
             return await interaction.response.send_message("No students awaiting online passoff.", ephemeral=True, delete_after=10)
 
-        await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
         await move_to_breakout(interaction, entry)
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
 
 
     @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
@@ -175,7 +180,7 @@ class TAView(discord.ui.View):
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
             voice_channel: discord.VoiceChannel = ta_voice_state.channel
         except Exception:
-            await interaction.response.send_message("You must be in a voice channel to use this command.")
+            await interaction.response.send_message("You must be in a voice channel to use this command.", ephemeral=True, delete_after=10)
             return
         
         if voice_channel == online_ta_vc:
@@ -230,19 +235,39 @@ def get_next_available_breakout(interaction: discord.Interaction):
         
 async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     student: discord.Member = interaction.guild.get_member(entry.user_id)
+    if student is None:
+        student: discord.User = await interaction.client.fetch_user(entry.user_id)
     ta: discord.Member = interaction.guild.get_member(interaction.user.id)
+    if ta is None:
+        ta: discord.User = interaction.user
     if entry.in_person:
-        await ta.move_to(get_channel(interaction, "In Person with Student"))
+        try:
+            await ta.move_to(get_channel(interaction, "In Person with Student"))
+        except Exception:
+            await ta.send("Because you weren't in the Online TAs voice channel, you need to join the In Person with Student channel manually. Please do so now.")
+
     else:
         breakout_channel: discord.VoiceChannel = get_next_available_breakout(interaction)
         if breakout_channel is None: 
-            raise RuntimeError("ouch!")
+            interaction.response.send_message("No breakout rooms available at this time. Tough luck.")
+        
         try:
             await ta.move_to(breakout_channel)
-            await student.move_to(breakout_channel)
-        except Exception as e:
-            print(f"A bad thing happened: {e}")
+        except Exception:
+            await ta.send(f"Because you didn't join the Online TAs voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the student is waiting.")
 
+        try:
+            await student.move_to(breakout_channel)
+        except Exception:
+            await student.send(f"Because you didn't join the Waiting Room voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the TA is waiting.")
+
+
+# async def send_dm(user: discord.User, msg: str) -> None:
+#     if user.dm_channel is None:
+#         await user.create_dm()
+#         user.send(msg)
+
+    
 
 
 
