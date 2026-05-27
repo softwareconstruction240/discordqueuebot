@@ -38,6 +38,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             await interaction.response.send_message(
                 "Join Queue _**Failed**_. Please enter either `o` or `p` to indicate whether you are online or in-person",
                 ephemeral=True,
+                delete_after=20
             )
             return
         
@@ -58,7 +59,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
                 await channel.send(
                     f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
                     f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
-                    delete_after=60*5
+                    delete_after=30
                 )
 
 
@@ -77,7 +78,8 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         if value not in ("o", "p"):
             await interaction.response.send_message(
                 "_**Could not join queue**_. Please enter `o` or `p` to indicate whether you are online or in-person",
-                ephemeral=True
+                ephemeral=True,
+                delete_after=30
             )
             return
         
@@ -96,7 +98,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             if channel.name == "ta-bot-chat":
                 await channel.send(
                     f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
-                    delete_after=60*5
+                    delete_after=30
                 )
                 
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
@@ -105,7 +107,7 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     
     async def on_submit(self, interaction: discord.Interaction):
         if self.confirmation.value.lower() != 'y':
-            await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=30)
+            await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
         else:
             await interaction.client.queue.clear()
             await interaction.response.send_message("Queue cleared", delete_after=60*5)
@@ -128,4 +130,4 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
                 await interaction.response.send_message(f"{user.display_name} has been removed from the queue by {interaction.user.display_name}.", delete_after=60*5)
                 return
             
-        await interaction.response.send_message(f"No student with the username \"{self.input.value}\" in the queue.", ephemeral=True, delete_after=20)
+        await interaction.response.send_message(f"No student with the username \"{self.input.value}\" in the queue.", ephemeral=True, delete_after=10)

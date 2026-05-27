@@ -46,7 +46,8 @@ class Bot(discord.Client):
 
         await interaction.response.send_message(
             f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not in_person else ""}",
-            ephemeral=True
+            ephemeral=True,
+            delete_after=60*5
         )
 
 bot = Bot()

@@ -46,6 +46,22 @@ class QueueView(discord.ui.View):
         else:
             await interaction.response.send_message("You aren't currently in the queue", ephemeral=True, delete_after=10)
 
+    @discord.ui.button(label="My Position", style=discord.ButtonStyle.secondary, custom_id="my_position", emoji="📍")
+    async def position_btn(self, interaction: discord.Interaction, button):
+        pos = await interaction.client.queue.get_position(interaction.user.id)
+        if pos is None:
+            await interaction.response.send_message(
+                "You are not currently in the queue",
+                ephemeral=True,
+                delete_after=20
+            )
+        else:
+            await interaction.response.send_message(
+                f"You are currently #{pos} in the queue",
+                ephemeral=True,
+                delete_after=20
+            )
+
 
 class TAView(discord.ui.View):
 
@@ -59,12 +75,12 @@ class TAView(discord.ui.View):
     async def open(self, interaction: discord.Interaction, button: discord.Button):
         if not queue_is_open(interaction):
             interaction.client.queue.is_open = True
-            await interaction.response.send_message("Queue opened.", ephemeral=True, delete_after=60*5)
+            await interaction.response.send_message("Queue opened.", ephemeral=True, delete_after=20)
             help_channel = get_channel(interaction, "help-queue-chat")
 
             if help_channel.last_message is not None and help_channel.last_message.content == self.close_msg:
                 await help_channel.last_message.delete()
-            await help_channel.send(self.open_msg, delete_after=60*60*12)
+            await help_channel.send(self.open_msg, delete_after=60*60*4)
             return
         else:
             await interaction.response.send_message("Queue is already open!", ephemeral=True, delete_after=10)
@@ -73,11 +89,11 @@ class TAView(discord.ui.View):
     async def close(self, interaction: discord.Interaction, button):
         if queue_is_open(interaction):
             interaction.client.queue.is_open = False
-            await interaction.response.send_message("Queue closed.", ephemeral=True, delete_after=60*5)
+            await interaction.response.send_message("Queue closed.", ephemeral=True, delete_after=20)
             help_channel = get_channel(interaction, "help-queue-chat")
             if help_channel.last_message is not None and help_channel.last_message.content == self.open_msg:
                 await help_channel.last_message.delete()
-            await help_channel.send(self.close_msg, delete_after=60*60*12)
+            await help_channel.send(self.close_msg, delete_after=60*60*13)
             return
         else:
             await interaction.response.send_message("Queue is already closed!", ephemeral=True, delete_after=10)
@@ -85,7 +101,7 @@ class TAView(discord.ui.View):
     @discord.ui.button(label="View Queue", style=discord.ButtonStyle.secondary, custom_id="view_queue", emoji="👀")
     async def view_btn(self, interaction: discord.Interaction, button):
         text = await interaction.client.queue.view()
-        await interaction.response.send_message(text, ephemeral=True)
+        await interaction.response.send_message(text, ephemeral=True, delete_after=30)
 
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.blurple, custom_id="next", emoji="➡️")
@@ -110,7 +126,7 @@ class TAView(discord.ui.View):
                 pass
 
         if not interaction.response.is_done():
-            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=20)
 
     @discord.ui.button(label="Next Online", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -136,13 +152,14 @@ class TAView(discord.ui.View):
                 pass
 
         if not interaction.response.is_done():
-            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=20)
 
     
     @discord.ui.button(label="Next Passoff", style=discord.ButtonStyle.blurple, custom_id="next_passoff", emoji="✅")
     async def next_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
         front_before = await interaction.client.queue.get_front()
+        
         entry: Optional[QueueEntry] = await interaction.client.queue.next(passoff_only=True)
 
         if not entry:
@@ -160,7 +177,7 @@ class TAView(discord.ui.View):
                 pass
 
         if not interaction.response.is_done():
-            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=20)
 
 
     @discord.ui.button(label="Next Online Passoff", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
@@ -184,7 +201,7 @@ class TAView(discord.ui.View):
                 pass
 
         if not interaction.response.is_done():
-            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=60)
+            await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=20)
 
 
     @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
@@ -202,7 +219,7 @@ class TAView(discord.ui.View):
                 builder += fixed_width(str(item), width) + ("\n" if student.index(item) == len(student)-1 else "| ")
         
         builder+="```"
-        await interaction.response.send_message(builder, ephemeral=True)
+        await interaction.response.send_message(builder, ephemeral=True, delete_after=60*5)
 
     @discord.ui.button(label="Clear Queue", style=discord.ButtonStyle.danger, custom_id="clear_queue", emoji="💥")
     async def clear_queue(self, interaction: discord.Interaction, button):
@@ -216,7 +233,6 @@ class TAView(discord.ui.View):
     async def finish_button(self, interaction: discord.Interaction, button):
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, "Online TAs")
 
-        # TODO: WIP vvv
         try:
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
             voice_channel: discord.VoiceChannel = ta_voice_state.channel
@@ -261,11 +277,6 @@ def get_role(interaction: discord.Interaction, role_name) -> discord.Role:
         if role.name == role_name:
             return role
 
-# currently redundant
-async def notify_tas(interaction: discord.Interaction, msg: str):
-    ta_chat: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
-    await ta_chat.send(msg, delete_after=60*10)
-
 def get_next_available_breakout(interaction: discord.Interaction):
     breakout_names = ("Breakout Room A", "Breakout Room B", "Breakout Room C")
     for vc in interaction.guild.voice_channels:
@@ -290,7 +301,7 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     else:
         breakout_channel: discord.VoiceChannel = get_next_available_breakout(interaction)
         if breakout_channel is None: 
-            interaction.response.send_message("No breakout rooms available at this time. Tough luck.")
+            interaction.response.send_message("No breakout rooms available at this time. Tough luck.", ephemeral=True, delete_after=10)
         
         try:
             await ta.move_to(breakout_channel)
@@ -301,12 +312,6 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
             await student.move_to(breakout_channel)
         except Exception:
             await student.send(f"Because you didn't join the Waiting Room voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the TA is waiting.")
-
-
-# async def send_dm(user: discord.User, msg: str) -> None:
-#     if user.dm_channel is None:
-#         await user.create_dm()
-#         user.send(msg)
 
     
 
