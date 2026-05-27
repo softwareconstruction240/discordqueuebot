@@ -1,5 +1,6 @@
 import discord
-from db import get_times_helped_today
+from datetime import datetime
+from db import get_times_helped_today, record_bot_issue
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -101,6 +102,31 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
                     delete_after=30
                 )
                 
+
+class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
+    description = discord.ui.TextInput(
+        label="Describe the issue",
+        placeholder="Describe what is going wrong with the bot.",
+        style=discord.TextStyle.paragraph,
+        max_length=500,
+        min_length=1
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message("The TAs have been notified. They will reach out to you if needed.", ephemeral=True, delete_after=30)
+        issue_text = self.description.value.strip()
+        record_bot_issue(datetime.now(), issue_text)
+        ta_role = discord.utils.get(interaction.guild.roles, name="TA")
+        ta_mention = ta_role.mention
+        for channel in interaction.guild.channels:
+            if channel.name == "ta-bot-chat":
+                await channel.send(
+                    f"{ta_mention} {interaction.user.display_name} is having trouble with the bot. Description: {issue_text}"
+                )
+                break
+
+
+
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     warning = discord.ui.TextDisplay("Are you sure? This will remove all students from the queue, and cannot be undone.")
     confirmation = discord.ui.TextInput(label="Please confirm", placeholder="y/n", max_length=1)

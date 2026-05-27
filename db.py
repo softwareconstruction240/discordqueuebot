@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date, time
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 from typing import Optional
 from discord.ext import tasks
@@ -18,11 +18,24 @@ CREATE TABLE IF NOT EXISTS user_stats (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS bot_incidents (
+    id INTEGER PRIMARY KEY,
+    last_incident TEXT,
+    last_issue TEXT
+)
+""")
+
 # Ensure older databases gain the new student_name column.
 cursor.execute("PRAGMA table_info(user_stats)")
 columns = [row[1] for row in cursor.fetchall()]
 if "student_name" not in columns:
     cursor.execute("ALTER TABLE user_stats ADD COLUMN student_name STRING")
+
+cursor.execute("PRAGMA table_info(bot_incidents)")
+bot_columns = [row[1] for row in cursor.fetchall()]
+if "last_issue" not in bot_columns:
+    cursor.execute("ALTER TABLE bot_incidents ADD COLUMN last_issue TEXT")
 
 conn.commit()
 
@@ -70,6 +83,26 @@ def _update_student_name_if_longer(user_id: int, student_name: str):
             "UPDATE user_stats SET student_name = ? WHERE user_id = ?",
             (student_name, user_id)
         )
+
+def record_bot_issue(timestamp: datetime, issue: str):
+    cursor.execute(
+        "INSERT INTO bot_incidents (id, last_incident, last_issue) VALUES (1, ?, ?)"
+        " ON CONFLICT(id) DO UPDATE SET last_incident = ?, last_issue = ?",
+        (timestamp.isoformat(), issue, timestamp.isoformat(), issue)
+    )
+    conn.commit()
+
+
+def get_last_incident_info() -> tuple[Optional[int], Optional[str]]:
+    cursor.execute("SELECT last_incident, last_issue FROM bot_incidents WHERE id = 1")
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        return None, None
+
+    last_incident = datetime.fromisoformat(row[0])
+    delta = datetime.now() - last_incident
+    return delta.days, row[1] or None
+
 
 def get_student_info() -> tuple[list]:
     """Get information about students that have joined the help queue.

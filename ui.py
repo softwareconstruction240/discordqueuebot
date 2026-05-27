@@ -1,9 +1,9 @@
 from typing import Optional
 
 import discord
-from db import increment_help, get_student_info, get_times_helped_today
+from db import get_last_incident_info, increment_help, get_student_info, get_times_helped_today
 from records import QueueEntry
-from modals import HelpModal, PassoffModal, ClearConfirmModal, RemoveConfirmModal
+from modals import HelpModal, PassoffModal, ClearConfirmModal, RemoveConfirmModal, BotIssueModal
 
 
 class QueueView(discord.ui.View):
@@ -46,6 +46,7 @@ class QueueView(discord.ui.View):
         else:
             await interaction.response.send_message("You aren't currently in the queue", ephemeral=True, delete_after=10)
 
+
     @discord.ui.button(label="My Position", style=discord.ButtonStyle.secondary, custom_id="my_position", emoji="📍")
     async def position_btn(self, interaction: discord.Interaction, button):
         pos = await interaction.client.queue.get_position(interaction.user.id)
@@ -62,6 +63,9 @@ class QueueView(discord.ui.View):
                 delete_after=20
             )
 
+    @discord.ui.button(label="Report Bot Problem", style=discord.ButtonStyle.secondary, custom_id="report_bot_problem", emoji="☢️")
+    async def report_bot_problem_btn(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(BotIssueModal())
 
 class TAView(discord.ui.View):
 
@@ -102,6 +106,20 @@ class TAView(discord.ui.View):
     async def view_btn(self, interaction: discord.Interaction, button):
         text = await interaction.client.queue.view()
         await interaction.response.send_message(text, ephemeral=True, delete_after=30)
+
+    @discord.ui.button(label="Days Since Last Incident", style=discord.ButtonStyle.secondary, custom_id="days_since_incident", emoji="⚠️")
+    async def days_since_incident_btn(self, interaction: discord.Interaction, button):
+        days, issue_text = get_last_incident_info()
+        if days is None:
+            message = "No incidents have been reported yet."
+        elif days == 0:
+            message = f"The last incident was reported today. Description: {issue_text or 'No description provided.'}"
+        elif days == 1:
+            message = f"The last incident was reported 1 day ago. Description: {issue_text or 'No description provided.'}"
+        else:
+            message = f"The last incident was reported {days} days ago. Description: {issue_text or 'No description provided.'}"
+
+        await interaction.response.send_message(message, ephemeral=True, delete_after=30)
 
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.blurple, custom_id="next", emoji="➡️")
@@ -159,7 +177,7 @@ class TAView(discord.ui.View):
     async def next_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
         front_before = await interaction.client.queue.get_front()
-        
+
         entry: Optional[QueueEntry] = await interaction.client.queue.next(passoff_only=True)
 
         if not entry:
