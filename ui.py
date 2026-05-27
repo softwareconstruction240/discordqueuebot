@@ -171,13 +171,20 @@ class TAView(discord.ui.View):
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, "Online TAs")
 
         # TODO: WIP vvv
-        if interaction.user.fetch_voice().channel is not discord.VoiceChannel or interaction.channel == online_ta_vc:
-            await interaction.response.send_message("You're not currently helping anyone!")
+        try:
+            ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
+            voice_channel: discord.VoiceChannel = ta_voice_state.channel
+        except Exception:
+            await interaction.response.send_message("You must be in a voice channel to use this command.")
+            return
+        
+        if voice_channel == online_ta_vc:
+            await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=10)
             return
         
 
         ta_role: discord.Role = get_role(interaction, "TA")
-        for member in interaction.channel.members:
+        for member in voice_channel.members:
             if ta_role in member.roles:
                 continue
             else:
