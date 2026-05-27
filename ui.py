@@ -96,7 +96,7 @@ class TAView(discord.ui.View):
             return await interaction.response.send_message("Queue is empty.", ephemeral=True, delete_after=10)
 
         if not entry.is_passoff:
-            increment_help(entry.user_id, entry.username)
+            increment_help(entry.user_id, entry.username, entry.student_name)
 
         await move_to_breakout(interaction, entry)
 
@@ -111,7 +111,7 @@ class TAView(discord.ui.View):
             return await interaction.response.send_message("No online students available.", ephemeral=True, delete_after=10)
 
         if not entry.is_passoff:
-            increment_help(entry.user_id, entry.username)
+            increment_help(entry.user_id, entry.username, entry.student_name)
 
         await move_to_breakout(interaction, entry)
 

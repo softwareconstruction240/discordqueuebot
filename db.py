@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import date, time
 from zoneinfo import ZoneInfo
+from typing import Optional
 from discord.ext import tasks
 
 conn: sqlite3.Connection = sqlite3.connect("queue.db")
@@ -10,11 +11,18 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_stats (
     user_id INTEGER PRIMARY KEY,
     user_name STRING,
+    student_name STRING,
     total_help INTEGER DEFAULT 0,
     daily_help INTEGER DEFAULT 0,
     last_reset TEXT
 )
 """)
+
+# Ensure older databases gain the new student_name column.
+cursor.execute("PRAGMA table_info(user_stats)")
+columns = [row[1] for row in cursor.fetchall()]
+if "student_name" not in columns:
+    cursor.execute("ALTER TABLE user_stats ADD COLUMN student_name STRING")
 
 conn.commit()
 
@@ -35,17 +43,33 @@ async def daily_reset():
     print("Daily help counts reset.")
 
 
-def increment_help(user_id: int, user_name: str):
+def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None):
     cursor.execute("""
-        INSERT INTO user_stats (user_id, user_name, total_help, daily_help, last_reset)
-        VALUES (?, ?, 1, 1, ?)
+        INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help, last_reset)
+        VALUES (?, ?, ?, 1, 1, ?)
         ON CONFLICT(user_id) DO UPDATE SET
             user_name = ?,
             total_help = total_help + 1,
             daily_help = daily_help + 1
-    """, (user_id, user_name, str(date.today()), user_name))
+    """, (user_id, user_name, student_name or "", str(date.today()), user_name))
+
+    if student_name:
+        _update_student_name_if_longer(user_id, student_name)
 
     conn.commit()
+
+
+def _update_student_name_if_longer(user_id: int, student_name: str):
+
+    cursor.execute("SELECT student_name FROM user_stats WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
+
+    existing_name = row[0] if row else ""
+    if len(student_name) > len(existing_name or ""):
+        cursor.execute(
+            "UPDATE user_stats SET student_name = ? WHERE user_id = ?",
+            (student_name, user_id)
+        )
 
 def get_student_info() -> tuple[list]:
     """Get information about students that have joined the help queue.
@@ -61,9 +85,9 @@ def get_student_info() -> tuple[list]:
     In practice more information is given by this function.
     """
 
-    result: tuple[list] = (["Username", "Total Help Queue visits", "Times Helped Today"], [])
+    result: tuple[list] = (["Name", "Total Help Queue visits", "Times Helped Today"], [])
 
-    for row in cursor.execute("SELECT user_name, total_help, daily_help FROM user_stats"):
+    for row in cursor.execute("SELECT COALESCE(NULLIF(student_name, ''), user_name), total_help, daily_help FROM user_stats"):
         result[1].append(row)
 
     return result

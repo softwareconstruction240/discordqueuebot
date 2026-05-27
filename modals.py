@@ -1,6 +1,13 @@
 import discord
 from db import get_times_helped_today
+
 class HelpModal(discord.ui.Modal, title="Request Help"):
+
+    name = discord.ui.TextInput(
+        label="Your name",
+        placeholder="John D. Fortnite",
+        max_length=100
+    )
 
     question = discord.ui.TextInput(
         label="What do you need help with?",
@@ -34,18 +41,22 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             )
             return
         
+        student_name = self.name.value.strip()
+
         await interaction.client.queue_handler(
             interaction,
             self.question.value,
             False,
-            value == "p"
+            value == "p",
+            student_name
         )
 
         times_helped = get_times_helped_today(interaction.user.id)
+        mode = "In-person" if value == "p" else "Online"
         for channel in interaction.guild.channels:
             if channel.name == "ta-bot-chat":
                 await channel.send(
-                    f"{interaction.user.display_name} has joined the help queue - {"In-person" if value=="p" else "Online"} - {self.question.value} "
+                    f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
                     f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
                     delete_after=60*5
                 )
@@ -53,6 +64,11 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
+    name = discord.ui.TextInput(
+        label="Your name",
+        placeholder="John D. Fortnite",
+        max_length=100
+    )
     phase = discord.ui.TextInput(label="Which phase?", max_length=50)
     in_person = discord.ui.TextInput(label="Online or In-Person? (o/p)", max_length=1)
 
@@ -65,18 +81,23 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             )
             return
         
+        student_name = self.name.value.strip()
+
         await interaction.client.queue_handler(
             interaction,
             self.phase.value,
             True,
-            self.in_person.value.lower() == "p"
+            self.in_person.value.lower() == "p",
+            student_name
         )
 
+        mode = "In-person" if value == "p" else "Online"
         for channel in interaction.guild.channels:
             if channel.name == "ta-bot-chat":
-                await channel.send(f"{interaction.user.display_name} has requested a passoff - {"In-person" if value=="p" else "Online"} - {self.phase.value}",
-                                   # disappear after 5 minutes
-                                   delete_after=60*5)
+                await channel.send(
+                    f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
+                    delete_after=60*5
+                )
                 
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     warning = discord.ui.TextDisplay("Are you sure? This will remove all students from the queue, and cannot be undone.")

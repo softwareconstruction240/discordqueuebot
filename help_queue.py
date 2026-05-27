@@ -61,8 +61,11 @@ class HelpQueue:
                 p_tag = "PASSOFF" if e.is_passoff else "HELP"
                 o_tag = "ONLINE" if not e.in_person else "IN-PERSON"
                 times_helped = get_times_helped_today(e.user_id)
+                display_name = e.username
+                if e.student_name:
+                    display_name = f"{e.username} ({e.student_name})"
                 out.append(
-                    f"{i}. {e.username} - {p_tag} - {o_tag} - {e.details} "
+                    f"{i}. {display_name} - {p_tag} - {o_tag} - {e.details} "
                     f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)"
                 )
 

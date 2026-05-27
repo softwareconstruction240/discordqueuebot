@@ -29,10 +29,11 @@ class Bot(discord.Client):
         daily_reset.start()
         await self.tree.sync()
 
-    async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person):
+    async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
         entry = QueueEntry(
             user_id=interaction.user.id,
             username=interaction.user.display_name,
+            student_name=student_name,
             details=question,
             is_passoff=is_passoff,
             timestamp=datetime.now(),
