@@ -143,6 +143,8 @@ class TAView(discord.ui.View):
             except Exception:
                 pass
 
+
+        # Getting an unknown response here :/
         if not interaction.response.is_done():
             await interaction.response.send_message(f"{interaction.user.display_name} is now helping {entry.username}", delete_after=20)
 
