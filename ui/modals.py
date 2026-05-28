@@ -1,6 +1,7 @@
 import discord
 from datetime import datetime
 from db import get_times_helped_today, record_bot_issue
+from discord_helpers import get_channel
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -55,13 +56,20 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
         times_helped = get_times_helped_today(interaction.user.id)
         mode = "In-person" if value == "p" else "Online"
-        for channel in interaction.guild.channels:
-            if channel.name == "ta-bot-chat":
-                await channel.send(
-                    f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
-                    f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
-                    delete_after=30
-                )
+        pos = await self.queue.get_position(interaction.user.id)
+
+        await interaction.response.send_message(
+            f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
+            ephemeral=True,
+            delete_after=60*5
+        )
+
+        ta_channel: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
+        await ta_channel.send(
+            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
+            f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
+            delete_after=30
+        )
 
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
@@ -95,12 +103,19 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         )
 
         mode = "In-person" if value == "p" else "Online"
-        for channel in interaction.guild.channels:
-            if channel.name == "ta-bot-chat":
-                await channel.send(
-                    f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
-                    delete_after=30
-                )
+        pos = await self.queue.get_position(interaction.user.id)
+
+        await interaction.response.send_message(
+            f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
+            ephemeral=True,
+            delete_after=60*5
+        )
+
+        ta_channel: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
+        await ta_channel.send(
+            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
+            delete_after=30
+        )
                 
 
 class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
