@@ -1,7 +1,7 @@
 import discord
 from datetime import datetime
 from db import get_times_helped_today, record_bot_issue
-from discord_helpers import get_channel
+from ui.helpers.discord_helpers import get_channel
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -56,7 +56,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
         times_helped = get_times_helped_today(interaction.user.id)
         mode = "In-person" if value == "p" else "Online"
-        pos = await self.queue.get_position(interaction.user.id)
+        pos = await interaction.client.queue.get_position(interaction.user.id)
 
         await interaction.response.send_message(
             f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
@@ -103,7 +103,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         )
 
         mode = "In-person" if value == "p" else "Online"
-        pos = await self.queue.get_position(interaction.user.id)
+        pos = await interaction.client.queue.get_position(interaction.user.id)
 
         await interaction.response.send_message(
             f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",

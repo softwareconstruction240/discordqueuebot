@@ -2,7 +2,7 @@ import discord
 from discord.utils import get as discord_get
 from typing import Optional
 from records import QueueEntry
-from constants import BREAKOUT_NAMES, NEXT_IN_LINE_MSG, IN_PERSON_CHANNEL_NAME
+from ui.helpers.constants import BREAKOUT_NAMES, NEXT_IN_LINE_MSG, IN_PERSON_CHANNEL_NAME, SHORT_TIMEOUT
 
 def get_channel(interaction: discord.Interaction, channel_name: str) -> Optional[discord.abc.GuildChannel]:
     return discord_get(interaction.guild.channels, name=channel_name)

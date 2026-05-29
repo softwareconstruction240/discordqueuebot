@@ -3,10 +3,10 @@ from typing import Optional
 import discord
 from db import get_last_incident_info, increment_help, get_student_info
 from records import QueueEntry
-from modals import ClearConfirmModal, RemoveConfirmModal
-from constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, HELP_CHANNEL_NAME, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, CLOSE_TTL, OPEN_TTL, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, ONLINE_TAS_VC_NAME
-from utils import fixed_width
-from discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed
+from ui.modals import ClearConfirmModal, RemoveConfirmModal
+from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, HELP_CHANNEL_NAME, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, CLOSE_TTL, OPEN_TTL, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, ONLINE_TAS_VC_NAME
+from ui.helpers.utils import fixed_width
+from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed
 
 
 

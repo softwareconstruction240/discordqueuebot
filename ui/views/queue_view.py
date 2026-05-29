@@ -1,8 +1,8 @@
 import discord
-from queue_helpers import require_queue_open_and_not_in_queue
+from ui.helpers.queue_helpers import require_queue_open_and_not_in_queue
 from db import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
-from constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
+from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
 
 
 class QueueView(discord.ui.View):
