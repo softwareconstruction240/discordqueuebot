@@ -1,9 +1,9 @@
 # Constants to centralize configurable names/messages
 HELP_CHANNEL_NAME = "help-queue-chat"
-TA_CHANNEL_NAME = "ta-bot-chat"
+TA_TEXT_CHANNEL_NAME = "ta-bot-chat"
+TA_VOICE_CHANNEL_NAME = "Online TAs"
 QUEUE_OPEN_MESSAGE = "The Help Queue is now open!"
 QUEUE_CLOSE_MESSAGE = "The Help Queue is now closed. If you are still on the queue, the TAs will help until their hours are over."
-ONLINE_TAS_VC_NAME = "Online TAs"
 IN_PERSON_CHANNEL_NAME = "In Person with Student"
 WAITING_ROOM_NAME = "Waiting Room"
 BREAKOUT_NAMES = ("Breakout Room A", "Breakout Room B", "Breakout Room C")

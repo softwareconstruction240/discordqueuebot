@@ -2,7 +2,7 @@ import discord
 from datetime import datetime
 from db import get_times_helped_today, record_bot_issue
 from ui.helpers.discord_helpers import get_channel, get_role
-from ui.helpers.constants import SHORT_TIMEOUT
+from ui.helpers.constants import SHORT_TIMEOUT, TA_TEXT_CHANNEL_NAME
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -65,7 +65,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             delete_after=60*5
         )
 
-        ta_channel: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
+        ta_channel: discord.TextChannel = get_channel(interaction, TA_TEXT_CHANNEL_NAME)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
             f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
@@ -112,7 +112,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             delete_after=60*5
         )
 
-        ta_channel: discord.TextChannel = get_channel(interaction, "ta-bot-chat")
+        ta_channel: discord.TextChannel = get_channel(interaction, TA_TEXT_CHANNEL_NAME)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
             delete_after=30
@@ -135,7 +135,7 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
         ta_role = discord.utils.get(interaction.guild.roles, name="TA")
         ta_mention = ta_role.mention
         for channel in interaction.guild.channels:
-            if channel.name == "ta-bot-chat":
+            if channel.name == TA_TEXT_CHANNEL_NAME:
                 await channel.send(
                     f"{ta_mention} {interaction.user.display_name} is having trouble with the bot. Description: {issue_text}"
                 )
