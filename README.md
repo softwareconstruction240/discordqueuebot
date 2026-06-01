@@ -109,6 +109,14 @@ The bot expects the following channel and role names by default. If you use diff
   - `Breakout Room C`
 - Roles:
   - `TA`
+  - `Bot` (so you can give it channel-specific permissions manually)
+
+Suggested permissions: 
+  - help-queue-chat: @everyone restrict permissions, @TA and @Bot all permissions.
+  - ta-bot-chat: @everyone cannot see the channel. @TA and @Bot all permissions.
+  - Online TAs: @everyone cannot join the channel, but they can see it. @TA and @Bot all permissions.
+  - Waiting Room/Breakout Rooms: @everyone all permissions
+  - In Person with Student: @everyone cannot join the channel, but they can see it. @TA and @Bot all permissions.
 
 ## Bot setup and start
 

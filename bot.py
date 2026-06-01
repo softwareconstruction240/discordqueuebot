@@ -4,7 +4,8 @@ from discord.utils import get
 from help_queue import HelpQueue
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
-from ui.helpers.constants import TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
+from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
+from ui.helpers.discord_helpers import update_queue_messages
 from records import QueueEntry
 from datetime import datetime
 from db import daily_reset, auto_queue_scheduler
@@ -26,6 +27,7 @@ class Bot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.queue: HelpQueue = HelpQueue()
         self.queue_status_message_id: int | None = None
+        self.help_queue_count_message_id: int | None = None
         self._player_task: Optional[asyncio.Task] = None
 
     async def setup_hook(self):
@@ -40,7 +42,7 @@ class Bot(discord.Client):
         await self.tree.sync()
 
     async def on_ready(self):
-        await self.update_queue_status_message()
+        await update_queue_messages(self)
         # ensure player task isn't left running accidentally
         if self._player_task is None and getattr(self.queue, 'entries', None):
             # start player only if queue not empty
@@ -117,6 +119,11 @@ class Bot(discord.Client):
             return get(guild.text_channels, name=TA_TEXT_CHANNEL_NAME)
         return None
 
+    async def get_help_channel(self) -> discord.TextChannel | None:
+        for guild in self.guilds:
+            return get(guild.text_channels, name=HELP_CHANNEL_NAME)
+        return None
+
     async def build_queue_status(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         queue_text = await self.queue.view()
@@ -149,6 +156,39 @@ class Bot(discord.Client):
 
         await status_message.edit(content=await self.build_queue_status())
 
+    async def build_help_queue_count(self) -> str:
+        status = "OPEN" if self.queue.is_open else "CLOSED"
+        async with self.queue.lock:
+            count = len(self.queue.entries)
+        return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue**"
+
+    async def fetch_or_create_help_queue_count_message(self) -> discord.Message | None:
+        help_channel = await self.get_help_channel()
+        if help_channel is None:
+            return None
+
+        if self.help_queue_count_message_id is not None:
+            try:
+                return await help_channel.fetch_message(self.help_queue_count_message_id)
+            except discord.NotFound:
+                self.help_queue_count_message_id = None
+
+        async for message in help_channel.history(limit=50):
+            if message.author == self.user and message.content.startswith("**Help Queue Status:"):
+                self.help_queue_count_message_id = message.id
+                return message
+
+        count_message = await help_channel.send(await self.build_help_queue_count())
+        self.help_queue_count_message_id = count_message.id
+        return count_message
+
+    async def update_help_queue_count_message(self) -> None:
+        count_message = await self.fetch_or_create_help_queue_count_message()
+        if count_message is None:
+            return
+
+        await count_message.edit(content=await self.build_help_queue_count())
+
     async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
         entry = QueueEntry(
             user_id=interaction.user.id,
@@ -161,7 +201,7 @@ class Bot(discord.Client):
         )
 
         await self.queue.add(entry)
-        await self.update_queue_status_message()
+        await update_queue_messages(self)
         # start playing notifications while queue has entries
         async with self.queue.lock:
             had = len(self.queue.entries) > 0

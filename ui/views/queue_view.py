@@ -3,6 +3,7 @@ from ui.helpers.queue_helpers import require_queue_open_and_not_in_queue
 from db import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
+from ui.helpers.discord_helpers import update_queue_messages
 
 
 class QueueView(discord.ui.View):
@@ -30,7 +31,7 @@ class QueueView(discord.ui.View):
     async def leave_btn(self, interaction: discord.Interaction, button):
         if await interaction.client.queue.is_in_queue(interaction.user.id):
             await interaction.client.queue.remove(interaction.user.id)
-            await interaction.client.update_queue_status_message()
+            await update_queue_messages(interaction.client)
             await interaction.response.send_message("Removed from queue.", ephemeral=True, delete_after=DEFAULT_TIMEOUT)
         else:
             await interaction.response.send_message("You aren't currently in the queue", ephemeral=True, delete_after=SHORT_TIMEOUT)

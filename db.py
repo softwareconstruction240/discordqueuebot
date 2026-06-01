@@ -1,11 +1,10 @@
 import sqlite3
 import discord
-from discord.utils import get as discord_get
 from datetime import date, datetime, time
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 from discord.ext import tasks
-from ui.helpers.constants import CLOSE_TTL, HELP_CHANNEL_NAME, OPEN_TTL, QUEUE_CLOSE_MESSAGE, QUEUE_OPEN_MESSAGE
+from ui.helpers.discord_helpers import update_queue_messages
 
 conn: sqlite3.Connection = sqlite3.connect("queue.db", detect_types=sqlite3.PARSE_DECLTYPES)
 conn.row_factory = sqlite3.Row
@@ -198,25 +197,6 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     conn.commit()
 
 
-async def _announce_queue_state(bot_client: discord.Client, opening: bool) -> None:
-    help_channel = None
-    for guild in bot_client.guilds:
-        help_channel = discord_get(guild.text_channels, name=HELP_CHANNEL_NAME)
-        if help_channel is not None:
-            break
-
-    if help_channel is None:
-        return
-
-    if opening:
-        if help_channel.last_message is not None and help_channel.last_message.content == QUEUE_CLOSE_MESSAGE:
-            await help_channel.last_message.delete()
-        await help_channel.send(QUEUE_OPEN_MESSAGE, delete_after=OPEN_TTL)
-    else:
-        if help_channel.last_message is not None and help_channel.last_message.content == QUEUE_OPEN_MESSAGE:
-            await help_channel.last_message.delete()
-        await help_channel.send(QUEUE_CLOSE_MESSAGE, delete_after=CLOSE_TTL)
-
 
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
@@ -230,11 +210,11 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     if current_time.hour == open_hour and current_time.minute == open_minute and not bot_client.queue.is_open:
         bot_client.queue.is_open = True
         print(f"Queue auto-opened at {current_time.strftime('%H:%M')}")
-        await _announce_queue_state(bot_client, opening=True)
+        await update_queue_messages(bot_client)
 
     
     # Check if we should close (at the configured close time)
     elif current_time.hour == close_hour and current_time.minute == close_minute and bot_client.queue.is_open:
         bot_client.queue.is_open = False
         print(f"Queue auto-closed at {current_time.strftime('%H:%M')}")
-        await _announce_queue_state(bot_client, opening=False)
+        await update_queue_messages(bot_client)

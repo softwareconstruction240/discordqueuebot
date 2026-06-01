@@ -1,7 +1,7 @@
 import discord
 from datetime import datetime
 from db import get_times_helped_today, record_bot_issue
-from ui.helpers.discord_helpers import get_channel, get_role
+from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages
 from ui.helpers.constants import SHORT_TIMEOUT, TA_TEXT_CHANNEL_NAME
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
@@ -152,7 +152,7 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
             await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
         else:
             await interaction.client.queue.clear()
-            await interaction.client.update_queue_status_message()
+            await update_queue_messages(interaction.client)
             await interaction.response.send_message("Queue cleared", delete_after=60*5)
             for channel in interaction.guild.channels:
                 if channel.name == "help-queue-chat":
@@ -169,7 +169,7 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
             if entry.username == self.input.value:
                 user: discord.User = await interaction.client.fetch_user(entry.user_id)
                 await interaction.client.queue.remove(user.id)
-                await interaction.client.update_queue_status_message()
+                await update_queue_messages(interaction.client)
                 await user.send(f"You have been removed from the CS240 help queue. {"Reason: " if self.reason.value != "" else ""}{self.reason.value}")
                 await interaction.response.send_message(f"{user.display_name} has been removed from the queue by {interaction.user.display_name}.", delete_after=60*5)
                 return

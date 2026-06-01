@@ -4,9 +4,9 @@ import discord
 from db import get_last_incident_info, increment_help, get_student_info
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
-from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, HELP_CHANNEL_NAME, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, CLOSE_TTL, OPEN_TTL, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME, QUEUE_OPEN_MESSAGE, QUEUE_CLOSE_MESSAGE
+from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
 from ui.helpers.utils import fixed_width
-from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed
+from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed, update_queue_messages
 
 
 
@@ -21,12 +21,7 @@ class TAView(discord.ui.View):
         if not interaction.client.queue.is_open:
             interaction.client.queue.is_open = True
             await interaction.response.send_message(QUEUE_OPENED, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
-            help_channel = get_channel(interaction, HELP_CHANNEL_NAME)
-
-            if help_channel and help_channel.last_message is not None and help_channel.last_message.content == QUEUE_CLOSE_MESSAGE:
-                await help_channel.last_message.delete()
-            if help_channel:
-                await help_channel.send(QUEUE_OPEN_MESSAGE, delete_after=OPEN_TTL)
+            await update_queue_messages(interaction.client)
             return
         else:
             await interaction.response.send_message(QUEUE_ALREADY_OPEN, ephemeral=True, delete_after=SHORT_TIMEOUT)
@@ -36,11 +31,7 @@ class TAView(discord.ui.View):
         if interaction.client.queue.is_open:
             interaction.client.queue.is_open = False
             await interaction.response.send_message(QUEUE_CLOSED, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
-            help_channel = get_channel(interaction, HELP_CHANNEL_NAME)
-            if help_channel and help_channel.last_message is not None and help_channel.last_message.content == QUEUE_OPEN_MESSAGE:
-                await help_channel.last_message.delete()
-            if help_channel:
-                await help_channel.send(self.QUEUE_CLOSE_MESSAGE, delete_after=CLOSE_TTL)
+            await update_queue_messages(interaction.client)
             return
         else:
             await interaction.response.send_message(QUEUE_ALREADY_CLOSED, ephemeral=True, delete_after=SHORT_TIMEOUT)
@@ -86,7 +77,7 @@ class TAView(discord.ui.View):
         if next_entry:
             await safe_dm_user(interaction.client, next_entry.user_id, NEXT_IN_LINE_MSG)
 
-        await interaction.client.update_queue_status_message()
+        await update_queue_messages(interaction.client)
 
         # Getting an unknown response here :/
         if not interaction.response.is_done():
@@ -108,7 +99,7 @@ class TAView(discord.ui.View):
 
         # Notify the next student in line only if they changed
         await notify_next_if_changed(interaction.client, front_before)
-        await interaction.client.update_queue_status_message()
+        await update_queue_messages(interaction.client)
 
         if not interaction.response.is_done():
             await interaction.response.send_message(
@@ -132,7 +123,7 @@ class TAView(discord.ui.View):
 
         # Notify the next student in line only if they changed
         await notify_next_if_changed(interaction.client, front_before)
-        await interaction.client.update_queue_status_message()
+        await update_queue_messages(interaction.client)
 
         if not interaction.response.is_done():
             await interaction.response.send_message(
@@ -154,7 +145,7 @@ class TAView(discord.ui.View):
 
         # Notify the next student in line only if they changed
         await notify_next_if_changed(interaction.client, front_before)
-        await interaction.client.update_queue_status_message()
+        await update_queue_messages(interaction.client)
 
         if not interaction.response.is_done():
             await interaction.response.send_message(
