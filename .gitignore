@@ -6,3 +6,7 @@
 
 # Local Cache
 __pycache__/
+.venv
+
+# Local DB
+queue.db
