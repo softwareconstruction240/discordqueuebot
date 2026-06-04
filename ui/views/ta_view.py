@@ -8,7 +8,55 @@ from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, Q
 from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed, update_queue_messages
 
+class RemoveStudentView(discord.ui.View):
+    def __init__(self, entries):
+        super().__init__(timeout=30)
 
+        options = []
+        for i, entry in enumerate(entries, start=1):
+            label = entry.student_name if entry.student_name else entry.username
+            if len(label) > 100:
+                label = label[:97] + "..."
+            desc = entry.details if entry.details else ""
+            if len(desc) > 100:
+                desc = desc[:97] + "..."
+
+            emoji = "✅" if entry.is_passoff else "❓"
+
+            options.append(
+                discord.SelectOption(
+                    label=label,
+                    value=str(entry.user_id),   
+                    description=f"#{i} {desc}" if desc else f"#{i} in queue",
+                    emoji=emoji,
+                )
+            )
+
+        select = discord.ui.Select(
+            placeholder="Select a student to remove...",
+            options=options,
+            min_values=1,
+            max_values=1,
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        user_id = int(self.children[0].values[0])
+
+        entry = next(
+            (e for e in interaction.client.queue.entries if e.user_id == user_id),
+            None
+        )
+        if not entry:
+            await interaction.response.send_message(
+                "That student is no longer in the queue.",
+                ephemeral=True, delete_after=10
+            )
+            return
+
+        student_name = entry.student_name if entry.student_name else entry.username
+        await interaction.response.send_modal(RemoveConfirmModal(user_id, student_name))
 
 class TAView(discord.ui.View):
 
@@ -161,8 +209,16 @@ class TAView(discord.ui.View):
 
     @discord.ui.button(label="Remove Student", style=discord.ButtonStyle.danger, custom_id="remove_from_queue", emoji="🗑️")
     async def remove_from_queue(self, interaction: discord.Interaction, button):
-        await interaction.response.send_modal(RemoveConfirmModal())
-
+        entries = interaction.client.queue.entries
+        if not entries:
+            await interaction.response.send_message(
+                "Queue is empty.", ephemeral=True, delete_after=10
+            )
+            return
+        view = RemoveStudentView(entries)
+        await interaction.response.send_message(
+            "Select a student to remove:", view=view, ephemeral=True, delete_after=60
+        )
     @discord.ui.button(label="Finish", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
