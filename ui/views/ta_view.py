@@ -11,9 +11,9 @@ from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, 
 class BaseLayoutView(discord.ui.LayoutView):
     pass
 
-class TAQueueControls(discord.ui.ActionRow[discord.ui.LayoutView]):
+class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.blurple, custom_id="next", emoji="➡️")
+    @discord.ui.button(label="Next Student", style=discord.ButtonStyle.blurple, custom_id="next", emoji="➡️")
     async def next(self, interaction: discord.Interaction, button):
         entry: Optional[QueueEntry] = await interaction.client.queue.next()
 
@@ -36,7 +36,7 @@ class TAQueueControls(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not interaction.response.is_done():
             await interaction.response.send_message(NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), delete_after=DEFAULT_TIMEOUT)
 
-    @discord.ui.button(label="Next Online", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
+    @discord.ui.button(label="Next Student (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
         front_before = await interaction.client.queue.get_front()
@@ -61,6 +61,9 @@ class TAQueueControls(discord.ui.ActionRow[discord.ui.LayoutView]):
                     delete_after=DEFAULT_TIMEOUT
             )
 
+
+
+class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Next Passoff", style=discord.ButtonStyle.blurple, custom_id="next_passoff", emoji="✅")
     async def next_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
@@ -83,7 +86,7 @@ class TAQueueControls(discord.ui.ActionRow[discord.ui.LayoutView]):
                 delete_after=DEFAULT_TIMEOUT
             )
 
-    @discord.ui.button(label="Next Online Passoff", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
+    @discord.ui.button(label="Next Passoff (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
     async def next_online_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
         front_before = await interaction.client.queue.get_front()
@@ -104,7 +107,8 @@ class TAQueueControls(discord.ui.ActionRow[discord.ui.LayoutView]):
                 delete_after=DEFAULT_TIMEOUT
             )
 
-    @discord.ui.button(label="Finish", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
+class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
+    @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
 
@@ -195,13 +199,24 @@ class TAView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
         container = discord.ui.Container[discord.ui.LayoutView](
-            discord.ui.Section(
-                "## Queue Controls",
-                accessory=discord.ui.Thumbnail["TAView"]("https://brightspotcdn.byu.edu/8e/28/7bcd62fe4b2b9517b74f783decfe/1-monogram-378w.svg")
-            ),
-            TAQueueControls(),
+            discord.ui.TextDisplay("## Queue Controls"),
+            # discord.ui.Section(
+            #     "## Queue Controls",
+            #     accessory=discord.ui.Thumbnail["TAView"]("https://images.seeklogo.com/logo-png/30/1/byu-brigham-young-university-logo-png_seeklogo-306722.png")
+            # ),
+            discord.ui.Separator(visible=False, spacing=discord.SeparatorSpacing.large),
+            discord.ui.TextDisplay("### Basic Controls"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            TAQueueControls1(),
+            TAQueueControls2(),
+            TAQueueControls3(),
+            discord.ui.Separator(visible=False, spacing=discord.SeparatorSpacing.large),
+            discord.ui.TextDisplay("### Queue Management"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             TAQueueManagement(),
+            discord.ui.Separator(visible=False, spacing=discord.SeparatorSpacing.large),
+            discord.ui.TextDisplay("### Information/Upkeep"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             TAQueueInformation()
         )
-        row: discord.ui.ActionRow[TAView] = discord.ui.ActionRow()
         self.add_item(container)

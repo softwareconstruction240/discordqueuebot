@@ -5,11 +5,7 @@ from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
 from ui.helpers.discord_helpers import update_queue_messages
 
-
-class QueueView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
+class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Need Help", style=discord.ButtonStyle.primary, custom_id="need_help", emoji="🙏")
     async def help_btn(self, interaction: discord.Interaction, button):
         ok = await require_queue_open_and_not_in_queue(interaction)
@@ -52,7 +48,23 @@ class QueueView(discord.ui.View):
                 ephemeral=True,
                 delete_after=DEFAULT_TIMEOUT,
             )
-
+class EsotericCommands(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Report Bot Problem", style=discord.ButtonStyle.secondary, custom_id="report_bot_problem", emoji="☢️")
     async def report_bot_problem_btn(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(BotIssueModal())
+
+class QueueView(discord.ui.LayoutView):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+
+        container = discord.ui.Container[discord.ui.LayoutView](
+            discord.ui.TextDisplay("## Queue Requests"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            QueueRequests(),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            EsotericCommands(),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+        )
+
+        self.add_item(container)

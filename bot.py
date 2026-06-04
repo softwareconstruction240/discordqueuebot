@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.utils import get
 from help_queue import HelpQueue
 from ui.views.queue_view import QueueView
-from ui.views.ta_view import TAView, TAQueueControls, TAQueueManagement, TAQueueInformation
+from ui.views.ta_view import TAView
 from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
 from ui.helpers.discord_helpers import update_queue_messages
 from records import QueueEntry
@@ -214,7 +214,6 @@ bot = Bot()
 @bot.tree.command(name="queue")
 async def queue_panel(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "Queue Panel",
         view=QueueView()
     )
 
@@ -223,18 +222,6 @@ async def ta_panel(interaction: discord.Interaction):
     await interaction.response.send_message(
         view=TAView()
     )
-    # await interaction.channel.send(
-    #     "Queue Controls",
-    #     view=TAQueueControls()
-    # )
-    # await interaction.channel.send(
-    #     "Queue Management",
-    #     view=TAQueueManagement()
-    # )
-    # await interaction.channel.send(
-    #     "Queue Information",
-    #     view=TAQueueInformation()
-    # )
 
 token: str = os.getenv("TOKEN")
 bot.run(token)
