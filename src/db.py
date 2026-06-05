@@ -29,8 +29,8 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS bot_incidents (
                 id INTEGER PRIMARY KEY,
-                last_incident TEXT,
-                last_issue TEXT
+                incident_timestamp TEXT,
+                incident TEXT
             )
             """
         )
@@ -64,6 +64,25 @@ def _initialize_database() -> None:
                 )
             """
         )
+
+        
+        # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS queue_history (
+                id INTEGER PRIMARY KEY,
+                student_name TEXT NOT NULL,
+                TA_name TEXT NOT NULL,
+                question TEXT,
+                enqueue_time TEXT NOT NULL,
+                dequeue_time TEXT NOT NULL,
+                is_passoff INTEGER CHECK (is_passoff IN (0,1)),
+                in_person INTEGER CHECK (in_person IN (0,1)),
+                time_finished TEXT
+                )
+            """
+        )
+
 
         # Ensure queue_settings has a default row
         cursor = conn.cursor()
@@ -144,26 +163,25 @@ def _update_student_name(user_id: int, student_name: str) -> None:
 def record_bot_issue(timestamp: datetime, issue: str) -> None:
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO bot_incidents (id, last_incident, last_issue) VALUES (1, ?, ?)"
-        " ON CONFLICT(id) DO UPDATE SET last_incident = ?, last_issue = ?",
-        (timestamp.isoformat(), issue, timestamp.isoformat(), issue),
+        "INSERT INTO bot_incidents (incident_timestamp, incident) VALUES (?, ?)",
+        (timestamp.isoformat(), issue)
     )
     conn.commit()
 
 
 def get_last_incident_info() -> tuple[Optional[int], Optional[str]]:
     cursor = conn.cursor()
-    cursor.execute("SELECT last_incident, last_issue FROM bot_incidents WHERE id = 1")
+    cursor.execute("SELECT incident_timestamp, incident FROM bot_incidents ORDER BY incident_timestamp DESC LIMIT 1")
     row = cursor.fetchone()
     if not row or not row[0]:
         return None, None
 
     try:
-        last_incident = datetime.fromisoformat(row[0])
+        last_incident_time = datetime.fromisoformat(row[0])
     except ValueError:
         return None, row[1] or None
 
-    delta = datetime.now() - last_incident
+    delta = datetime.now() - last_incident_time
     return delta.days, row[1] or None
 
 

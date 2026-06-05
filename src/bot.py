@@ -84,7 +84,6 @@ class Bot(discord.Client):
                 vc = channel.guild.voice_client
                 if vc is None:
                     vc = await channel.connect()
-                    print("Theoretically I should've connected to the channel")
 
                 # choose random mp3
                 chosen = None
@@ -98,7 +97,6 @@ class Bot(discord.Client):
                         vc.stop()
                     source = discord.FFmpegPCMAudio(chosen)
                     vc.play(source)
-                    print("sound played")
                     # wait until finished or 60s
                     waited = 0
                     while vc.is_playing() and waited < 120:
