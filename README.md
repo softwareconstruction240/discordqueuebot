@@ -1,14 +1,10 @@
 # discordqueuebot
 A help queue bot for the CS 240 Discord server.
 
-## Overview
-
-This bot manages a help queue in Discord, with TA controls, automatic queue open/close announcements, and voice notifications using MP3 files in the `resources/` folder.
-
 ## Requirements
 
-- Python 3.10 or newer (3.11+ recommended)
-- `ffmpeg` installed and available on your PATH for voice audio playback
+- Python 3.11+
+- `ffmpeg` installed and available on your PATH
 - A Discord application with bot token
 
 ## Python / VS Code setup
@@ -21,12 +17,16 @@ Go to https://www.python.org/downloads/. On Windows, enable "Add Python to PATH"
 
 Open the project folder in VS Code.
 
-
 > [!IMPORTANT]
 > Step 3 is optional, but highly recommended
 #### 3. Create and run a virtual environment in the project root:
 
 Refer to the internet for help on this one. It's different depending on your system.
+If you're using powershell, do   
+```
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
 #### 4. Upgrade pip and install dependencies:
 
