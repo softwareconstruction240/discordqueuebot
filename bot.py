@@ -39,9 +39,6 @@ class Bot(discord.Client):
         Initializes bot UI components (views) and starts background scheduling tasks 
         before the bot fully connects to Discord.
         """
-        # guild = self.get_guild(1503856452027023451)
-        # print(guild.name)
-        # self.tree.copy_global_to(guild=guild)
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
