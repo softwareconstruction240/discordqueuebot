@@ -74,6 +74,15 @@ async def daily_reset() -> None:
 
 
 def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None) -> None:
+    """
+    Records a help session for a user, incrementing both their total and daily help counts.
+    Creates a new user record if one does not exist.
+
+    Args:
+        user_id (int): The Discord user ID.
+        user_name (str): The user's Discord username.
+        student_name (Optional[str]): The student's actual name, if provided.
+    """
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -88,12 +97,20 @@ def increment_help(user_id: int, user_name: str, student_name: Optional[str] = N
     )
 
     if student_name:
-        _update_student_name_if_longer(user_id, student_name)
+        _update_student_name(user_id, student_name)
 
     conn.commit()
 
 
-def _update_student_name_if_longer(user_id: int, student_name: str) -> None:
+def _update_student_name(user_id: int, student_name: str) -> None:
+    """
+    Updates the student's name in the database if the new name provided is longer 
+    than the currently stored name.
+
+    Args:
+        user_id (int): The Discord user ID of the student.
+        student_name (str): The new name to evaluate and potentially store.
+    """
     cursor = conn.cursor()
     cursor.execute("SELECT student_name FROM user_stats WHERE user_id=?", (user_id,))
     row = cursor.fetchone()

@@ -22,6 +22,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 class Bot(discord.Client):
+    """
+    The core bot client that manages the help queue, UI views, and scheduled tasks.
+    Extends discord.Client to handle queue interactions and audio notifications.
+    """
     def __init__(self):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
@@ -31,6 +35,10 @@ class Bot(discord.Client):
         self._player_task: Optional[asyncio.Task] = None
 
     async def setup_hook(self):
+        """
+        Initializes bot UI components (views) and starts background scheduling tasks 
+        before the bot fully connects to Discord.
+        """
         # guild = self.get_guild(1503856452027023451)
         # print(guild.name)
         # self.tree.copy_global_to(guild=guild)
@@ -52,7 +60,7 @@ class Bot(discord.Client):
     async def get_ta_voice_channel(self) -> discord.VoiceChannel | None:
         for guild in self.guilds:
             return get(guild.voice_channels, name=TA_VOICE_CHANNEL_NAME)
-           
+            
 
     async def _play_notifications(self) -> None:
         """Join TA voice channel and play random mp3 from resources once per minute until queue empty."""
@@ -129,7 +137,7 @@ class Bot(discord.Client):
         queue_text = await self.queue.view()
         return f"**Help Queue Status: {status}**\n{queue_text}"
 
-    async def fetch_or_create_queue_status_message(self) -> discord.Message | None:
+    async def _get_status_message(self) -> discord.Message | None:
         ta_channel = await self.get_ta_channel()
         if ta_channel is None:
             return None
@@ -149,8 +157,8 @@ class Bot(discord.Client):
         self.queue_status_message_id = status_message.id
         return status_message
 
-    async def update_queue_status_message(self) -> None:
-        status_message = await self.fetch_or_create_queue_status_message()
+    async def _update_status(self) -> None:
+        status_message = await self._get_status_message()
         if status_message is None:
             return
 
@@ -162,7 +170,7 @@ class Bot(discord.Client):
             count = len(self.queue.entries)
         return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue**"
 
-    async def fetch_or_create_help_queue_count_message(self) -> discord.Message | None:
+    async def _get_count_message(self) -> discord.Message | None:
         help_channel = await self.get_help_channel()
         if help_channel is None:
             return None
@@ -182,14 +190,25 @@ class Bot(discord.Client):
         self.help_queue_count_message_id = count_message.id
         return count_message
 
-    async def update_help_queue_count_message(self) -> None:
-        count_message = await self.fetch_or_create_help_queue_count_message()
+    async def _update_count(self) -> None:
+        count_message = await self._get_count_message()
         if count_message is None:
             return
 
         await count_message.edit(content=await self.build_help_queue_count())
 
     async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
+        """
+        Processes a new request to join the help queue, creates a QueueEntry, 
+        updates the UI, and triggers the audio notification system if needed.
+
+        Args:
+            interaction (discord.Interaction): The user interaction context.
+            question (str): The student's question or issue details.
+            is_passoff (bool): Indicates if this is a required pass-off assignment.
+            in_person (bool): Indicates if the student is physically present.
+            student_name (str): The student's actual name.
+        """
         entry = QueueEntry(
             user_id=interaction.user.id,
             username=interaction.user.display_name,
@@ -214,14 +233,12 @@ bot = Bot()
 @bot.tree.command(name="queue")
 async def queue_panel(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "Queue Panel",
         view=QueueView()
     )
 
 @bot.tree.command(name="ta")
 async def ta_panel(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "TA Panel",
         view=TAView()
     )
 
