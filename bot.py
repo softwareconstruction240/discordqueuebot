@@ -45,8 +45,7 @@ class Bot(discord.Client):
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
-        auto_queue_scheduler.start(self)
-        
+        auto_queue_scheduler.start(self)        
         await self.tree.sync()
 
     async def on_ready(self):
@@ -57,7 +56,7 @@ class Bot(discord.Client):
             if len(self.queue.entries) > 0:
                 self._player_task = asyncio.create_task(self._play_notifications())
 
-    async def get_ta_voice_channel(self) -> discord.VoiceChannel | None:
+    async def _get_ta_voice_channel(self) -> discord.VoiceChannel | None:
         for guild in self.guilds:
             return get(guild.voice_channels, name=TA_VOICE_CHANNEL_NAME)
             
@@ -75,7 +74,7 @@ class Bot(discord.Client):
             if empty:
                 break
 
-            channel = await self.get_ta_voice_channel()
+            channel = await self._get_ta_voice_channel()
             if channel is None:
                 await asyncio.sleep(60)
                 continue
@@ -122,23 +121,23 @@ class Bot(discord.Client):
 
         self._player_task = None
 
-    async def get_ta_channel(self) -> discord.TextChannel | None:
+    async def _get_ta_channel(self) -> discord.TextChannel | None:
         for guild in self.guilds:
             return get(guild.text_channels, name=TA_TEXT_CHANNEL_NAME)
         return None
 
-    async def get_help_channel(self) -> discord.TextChannel | None:
+    async def _get_help_channel(self) -> discord.TextChannel | None:
         for guild in self.guilds:
             return get(guild.text_channels, name=HELP_CHANNEL_NAME)
         return None
 
-    async def build_queue_status(self) -> str:
+    async def _build_queue_status(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         queue_text = await self.queue.view()
         return f"**Help Queue Status: {status}**\n{queue_text}"
 
     async def _get_status_message(self) -> discord.Message | None:
-        ta_channel = await self.get_ta_channel()
+        ta_channel = await self._get_ta_channel()
         if ta_channel is None:
             return None
 
@@ -153,25 +152,25 @@ class Bot(discord.Client):
                 self.queue_status_message_id = message.id
                 return message
 
-        status_message = await ta_channel.send(await self.build_queue_status())
+        status_message = await ta_channel.send(await self._build_queue_status())
         self.queue_status_message_id = status_message.id
         return status_message
 
-    async def _update_status(self) -> None:
+    async def update_status_for_students(self) -> None:
         status_message = await self._get_status_message()
         if status_message is None:
             return
 
-        await status_message.edit(content=await self.build_queue_status())
+        await status_message.edit(content=await self._build_queue_status())
 
-    async def build_help_queue_count(self) -> str:
+    async def _build_help_queue_count(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         async with self.queue.lock:
             count = len(self.queue.entries)
         return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue**"
 
     async def _get_count_message(self) -> discord.Message | None:
-        help_channel = await self.get_help_channel()
+        help_channel = await self._get_help_channel()
         if help_channel is None:
             return None
 
@@ -186,16 +185,16 @@ class Bot(discord.Client):
                 self.help_queue_count_message_id = message.id
                 return message
 
-        count_message = await help_channel.send(await self.build_help_queue_count())
+        count_message = await help_channel.send(await self._build_help_queue_count())
         self.help_queue_count_message_id = count_message.id
         return count_message
 
-    async def _update_count(self) -> None:
+    async def update_status_for_tas(self) -> None:
         count_message = await self._get_count_message()
         if count_message is None:
             return
 
-        await count_message.edit(content=await self.build_help_queue_count())
+        await count_message.edit(content=await self._build_help_queue_count())
 
     async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
         """
