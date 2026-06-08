@@ -4,6 +4,7 @@ from datetime import date, datetime, time
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 from discord.ext import tasks
+from records import QueueEntry
 from ui.helpers.discord_helpers import update_queue_messages
 
 conn: sqlite3.Connection = sqlite3.connect("./resources/queue.db", detect_types=sqlite3.PARSE_DECLTYPES)
@@ -45,26 +46,7 @@ def _initialize_database() -> None:
                 close_minute INTEGER DEFAULT 0
             )
             """
-        )
-
-        
-        # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS queue_history (
-                id INTEGER PRIMARY KEY,
-                student_name TEXT NOT NULL,
-                TA_name TEXT NOT NULL,
-                question TEXT,
-                enqueue_time TEXT NOT NULL,
-                dequeue_time TEXT NOT NULL,
-                is_passoff INTEGER CHECK (is_passoff IN (0,1)),
-                in_person INTEGER CHECK (in_person IN (0,1)),
-                time_finished TEXT
-                )
-            """
-        )
-
+        )        
         
         # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
         conn.execute(
@@ -246,6 +228,49 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     cursor.execute(
         "UPDATE queue_settings SET open_hour = ?, open_minute = ?, close_hour = ?, close_minute = ? WHERE id = 1",
         (open_hour, open_minute, close_hour, close_minute)
+    )
+    conn.commit()
+
+def add_queue_history_item(queue_entry: QueueEntry, ta: str, dequeue_time: datetime) -> int:
+    """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
+    
+    Returns: 
+        int => id of queue history item
+    """
+    wait_time: datetime = dequeue_time - queue_entry.timestamp
+    cursor = conn.cursor()
+    cursor.execute(
+        """INSERT INTO queue_history (
+            student_name,
+            ta_name,
+            question,
+            enqueue_time,
+            dequeue_time,
+            wait_time,
+            passoff,
+            in_person,
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (queue_entry.student_name, 
+              ta, 
+              queue_entry.details, 
+              queue_entry.timestamp.isoformat(), 
+              dequeue_time.isoformat, 
+              wait_time.isoformat(), 
+              queue_entry.is_passoff, 
+              queue_entry.in_person
+              )
+    )
+    generated_id = cursor.lastrowid
+    conn.commit()
+
+    return generated_id
+    
+
+def update_queue_history_item(id: int, time_in_queue: datetime):
+    cursor = conn.cursor()
+    cursor.execute(
+        """UPDATE queue_history SET help_time = ? WHERE id = ?""", (time_in_queue, id)
     )
     conn.commit()
 
