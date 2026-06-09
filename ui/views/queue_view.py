@@ -25,6 +25,8 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.danger, custom_id="leave_queue", emoji="🚪")
     async def leave_btn(self, interaction: discord.Interaction, button):
+        # TODO: update queue_history if they are currently being helped by a TA
+
         if await interaction.client.queue.is_in_queue(interaction.user.id):
             await interaction.client.queue.remove(interaction.user.id)
             await update_queue_messages(interaction.client)
