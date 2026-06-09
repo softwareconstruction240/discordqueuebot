@@ -9,6 +9,7 @@ from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed, update_queue_messages
 
 
+
 class RemoveStudentView(discord.ui.View):
     def __init__(self, entries):
         super().__init__(timeout=30)
