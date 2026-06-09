@@ -295,8 +295,22 @@ def get_queue_history_as_csv() -> discord.File:
     cursor = conn.cursor()
     cursor.execute("""PRAGMA table_info(queue_history)""")
     header = [row[1] for row in cursor.fetchall()]
-    cursor.execute("""SELECT * FROM queue_history""")
-    data = [row for row in cursor.fetchall()]
+    header.append("time_in_queue")
+    header.append("time_helped")
+
+    #build rows
+    data = []
+    cursor.execute("SELECT * FROM queue_history")
+    for row in cursor.fetchall():
+        items: list = [item for item in row]
+        # calculate time in queue
+        enqueue_time = datetime.fromisoformat(row[4])
+        dequeue_time = datetime.fromisoformat(row[5])
+        items.append(dequeue_time-enqueue_time)
+        #calculate time helped
+        finished_time: datetime = datetime.fromisoformat(row[8])
+        items.append(finished_time - dequeue_time)
+        data.append(items)
 
     buffer = io.StringIO()        
     writer = csv.writer(buffer)
