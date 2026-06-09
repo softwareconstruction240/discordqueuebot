@@ -17,6 +17,28 @@ def get_next_available_breakout(interaction: discord.Interaction):
 
     return None
 
+
+def count_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
+    """Return the number of unique users with the TA role who are in any voice channel.
+
+    Accepts either an `interaction` (and uses `interaction.guild`) or a `guild` directly.
+    """
+    if interaction is None and guild is None:
+        return 0
+
+    guild = guild or interaction.guild
+    ta_role = discord_get(guild.roles, name=ta_role_name)
+    if ta_role is None:
+        return 0
+
+    ta_ids = set()
+    for vc in guild.voice_channels:
+        for member in vc.members:
+            if ta_role in getattr(member, "roles", []):
+                ta_ids.add(member.id)
+
+    return len(ta_ids)
+
 async def safe_dm_user(client: discord.Client, user_id: int, message: str) -> None:
     try:
         user = await client.fetch_user(user_id)

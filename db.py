@@ -280,7 +280,6 @@ def _get_dequeue_time(id: int) -> datetime:
     
 
 def set_time_helped(id: int):
-    print(id)
     now = datetime.now()
     cursor = conn.cursor()
     cursor.execute(
@@ -319,6 +318,11 @@ def get_queue_history_as_csv() -> discord.File:
 
     file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
     return file
+
+def get_queue_history() -> list:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM queue_history")
+    return [row for row in cursor.fetchall()]
     
 
 
