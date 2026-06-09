@@ -1,12 +1,13 @@
 from typing import Optional
 
 import discord
-from db import get_last_incident_info, increment_help, get_student_info, update_queue_history_item, add_queue_history_item
+from db import get_last_incident_info, increment_help, get_student_info, set_time_helped, add_queue_history_item, get_queue_history_as_csv
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
 from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed, update_queue_messages
+
 
 class RemoveStudentView(discord.ui.View):
     def __init__(self, entries):
@@ -94,6 +95,9 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not interaction.response.is_done():
             await interaction.response.send_message(NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), delete_after=DEFAULT_TIMEOUT)
 
+        interaction.client.help_map[interaction.user.name] = add_queue_history_item(entry, interaction.user.name)
+
+
     @discord.ui.button(label="Next Student (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
@@ -119,6 +123,7 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
                     delete_after=DEFAULT_TIMEOUT
             )
 
+        interaction.client.help_map[interaction.user.name] = add_queue_history_item(entry, interaction.user.name)
 
 
 class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
@@ -144,6 +149,9 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
                 delete_after=DEFAULT_TIMEOUT
             )
 
+        interaction.client.help_map[interaction.user.name] = add_queue_history_item(entry, interaction.user.name)
+
+
     @discord.ui.button(label="Next Passoff (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
     async def next_online_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get who was at front before removal
@@ -165,9 +173,12 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
                 delete_after=DEFAULT_TIMEOUT
             )
 
+        interaction.client.help_map[interaction.user.name] = add_queue_history_item(entry, interaction.user.name)
+
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
+        await interaction.response.defer(thinking=False)
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
         
         try:
@@ -189,7 +200,10 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
             else:
                 await member.move_to(None)
         await interaction.user.move_to(online_ta_vc)
-        await interaction.response.defer(thinking=False)
+
+        ta_name = interaction.user.name
+        set_time_helped(interaction.client.help_map[ta_name])
+        interaction.client.help_map[ta_name] = None
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
@@ -261,6 +275,12 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
     async def edit_queue_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
         from ui.modals import EditQueueHoursModal
         await interaction.response.send_modal(EditQueueHoursModal())
+
+    @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
+    async def display_queue_history(self, interaction: discord.Interaction, button: discord.ui.Button):
+        csv_file = get_queue_history_as_csv()
+        await interaction.response.send_message(file=csv_file, delete_after=LONG_TIMEOUT)
+
 
 class TAView(discord.ui.LayoutView):
 

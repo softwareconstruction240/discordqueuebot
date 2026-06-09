@@ -1,5 +1,7 @@
+import io
 import sqlite3
 import discord
+import csv
 from datetime import date, datetime, time
 from typing import List, Optional
 from zoneinfo import ZoneInfo
@@ -48,6 +50,9 @@ def _initialize_database() -> None:
             """
         )
 
+        ##TODO: Delete this
+        conn.execute("DROP TABLE queue_history")
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS queue_history (
@@ -57,10 +62,9 @@ def _initialize_database() -> None:
                 question TEXT,
                 enqueue_time TEXT,
                 dequeue_time TEXT,
-                wait_time TEXT,
                 passoff INTEGER DEFAULT 0,
-                in_person INTEGER DEFAULT 0
-                help_time TEXT,
+                in_person INTEGER DEFAULT 0,
+                finished_time TEXT
             )
             """
         )
@@ -231,13 +235,13 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def add_queue_history_item(queue_entry: QueueEntry, ta: str, dequeue_time: datetime) -> int:
+def add_queue_history_item(queue_entry: QueueEntry, ta: str) -> int:
     """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
     
     Returns: 
         int => id of queue history item
     """
-    wait_time: datetime = dequeue_time - queue_entry.timestamp
+    dequeue_time = datetime.now()
     cursor = conn.cursor()
     cursor.execute(
         """INSERT INTO queue_history (
@@ -246,17 +250,15 @@ def add_queue_history_item(queue_entry: QueueEntry, ta: str, dequeue_time: datet
             question,
             enqueue_time,
             dequeue_time,
-            wait_time,
             passoff,
-            in_person,
+            in_person
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (queue_entry.student_name, 
               ta, 
               queue_entry.details, 
               queue_entry.timestamp.isoformat(), 
-              dequeue_time.isoformat, 
-              wait_time.isoformat(), 
+              dequeue_time.isoformat(), 
               queue_entry.is_passoff, 
               queue_entry.in_person
               )
@@ -265,15 +267,46 @@ def add_queue_history_item(queue_entry: QueueEntry, ta: str, dequeue_time: datet
     conn.commit()
 
     return generated_id
-    
 
-def update_queue_history_item(id: int, time_in_queue: datetime):
+def _get_dequeue_time(id: int) -> datetime:
     cursor = conn.cursor()
     cursor.execute(
-        """UPDATE queue_history SET help_time = ? WHERE id = ?""", (time_in_queue, id)
+        """
+        SELECT dequeue_time FROM queue_history WHERE id = ?
+        """, (id)
+    )
+    row = cursor.fetchone()
+    return datetime.fromisoformat(row[0])
+    
+
+def set_time_helped(id: int):
+    now = datetime.now()
+    then = _get_dequeue_time(id)
+    time_helped: datetime = now - then
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE queue_history SET help_time = ? WHERE id = ?
+        """, (time_helped.isoformat(), id)
     )
     conn.commit()
 
+def get_queue_history_as_csv() -> discord.File:
+    # build header from column names
+    cursor = conn.cursor()
+    cursor.execute("""PRAGMA table_info(queue_history)""")
+    header = [row[1] for row in cursor.fetchall()]
+    cursor.execute("""SELECT * FROM queue_history""")
+    data = [row for row in cursor.fetchall()]
+
+    buffer = io.StringIO()        
+    writer = csv.writer(buffer)
+    writer.writerow(header)
+    writer.writerows(data)
+
+    file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
+    return file
+    
 
 
 # Queue auto-open/close scheduled tasks

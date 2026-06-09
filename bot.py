@@ -33,6 +33,7 @@ class Bot(discord.Client):
         self.queue_status_message_id: int | None = None
         self.help_queue_count_message_id: int | None = None
         self._player_task: Optional[asyncio.Task] = None
+        self.help_map: map[str, int] = {}
 
     async def setup_hook(self):
         """
@@ -151,7 +152,7 @@ class Bot(discord.Client):
         self.queue_status_message_id = status_message.id
         return status_message
 
-    async def update_status_for_students(self) -> None:
+    async def update_student_status_message(self) -> None:
         status_message = await self._get_status_message()
         if status_message is None:
             return
@@ -184,7 +185,7 @@ class Bot(discord.Client):
         self.help_queue_count_message_id = count_message.id
         return count_message
 
-    async def update_status_for_tas(self) -> None:
+    async def update_ta_status_message(self) -> None:
         count_message = await self._get_count_message()
         if count_message is None:
             return
