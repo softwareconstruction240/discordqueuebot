@@ -127,7 +127,6 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
-        await interaction.response.defer(thinking=False)
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
         
         try:
@@ -140,7 +139,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         if voice_channel == online_ta_vc:
             await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=SHORT_TIMEOUT)
             return
-        
+        await interaction.response.defer()
 
         ta_role: discord.Role = get_role(interaction, "TA")
         for member in voice_channel.members:

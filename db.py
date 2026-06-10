@@ -50,8 +50,8 @@ def _initialize_database() -> None:
             """
         )
 
-        ##TODO: Delete this
-        conn.execute("DROP TABLE queue_history")
+        ##TODO: Delete this when development of queue_history is over
+        # conn.execute("DROP TABLE queue_history")
 
         conn.execute(
             """
@@ -259,8 +259,8 @@ def add_queue_history_item(queue_entry: QueueEntry, ta: str) -> int:
               queue_entry.details, 
               queue_entry.timestamp.isoformat(), 
               dequeue_time.isoformat(), 
-              queue_entry.is_passoff, 
-              queue_entry.in_person
+              1 if queue_entry.is_passoff else 0, 
+              1 if queue_entry.in_person else 0
               )
     )
     generated_id = cursor.lastrowid
@@ -301,14 +301,19 @@ def get_queue_history_as_csv() -> discord.File:
     data = []
     cursor.execute("SELECT * FROM queue_history")
     for row in cursor.fetchall():
-        items: list = [item for item in row]
+        for item in row:
+            print(type(item))
+        items: list = [item if item is not None else "None" for item in row]
         # calculate time in queue
         enqueue_time = datetime.fromisoformat(row[4])
         dequeue_time = datetime.fromisoformat(row[5])
         items.append(dequeue_time-enqueue_time)
         #calculate time helped
-        finished_time: datetime = datetime.fromisoformat(row[8])
-        items.append(finished_time - dequeue_time)
+        try: 
+            finished_time: datetime = datetime.fromisoformat(row[8])
+            items.append(finished_time - dequeue_time)
+        except TypeError:
+            items.append("None")
         data.append(items)
 
     buffer = io.StringIO()        

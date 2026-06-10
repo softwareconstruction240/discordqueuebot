@@ -138,9 +138,11 @@ class Bot(discord.Client):
         from service.queue_history_service import calculate_expected_wait_time
         async with self.queue.lock:
             queue_size = len(self.queue.entries)
-        expected = calculate_expected_wait_time(num_tas, queue_size)
-        minutes = int(expected.total_seconds() // 60)
-        return f" — expected wait: {max(minutes, 2)} minute{'s' if minutes != 1 else ''}"
+        time = calculate_expected_wait_time(num_tas, queue_size)
+        print(time)
+        minutes = int(time // 60)
+        seconds = time % 60
+        return f" — expected wait: {minutes}m {seconds}s"
     
     async def _build_student_status_message(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
