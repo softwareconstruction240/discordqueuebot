@@ -5,12 +5,11 @@ from db import get_queue_history
 def calculate_expected_wait_time(num_tas: int, queue_size: int) -> int:
     """Returns the expected wait time based on the number of active TAs and students currently in the queue based on """
     # defensive checks
-    if num_tas <= 0:
-        print("no TAs")
-        return 0
+    if num_tas == 0:
+        num_tas = 1
 
     if queue_size == 0: 
-        queue_size = 1 
+        queue_size = 0 
 
     queue_history: list = get_queue_history()
 

@@ -18,7 +18,19 @@ def get_next_available_breakout(interaction: discord.Interaction):
     return None
 
 
-def count_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
+def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta_role_name: str = "TA") -> int:
+    """Return the number of unique TA users in a specific voice channel."""
+    if voice_channel is None:
+        return 0
+
+    ta_role = discord_get(voice_channel.guild.roles, name=ta_role_name)
+    if ta_role is None:
+        return 0
+
+    return sum(1 for member in voice_channel.members if ta_role in getattr(member, "roles", []))
+
+
+def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
     """Return the number of unique users with the TA role who are in any voice channel.
 
     Accepts either an `interaction` (and uses `interaction.guild`) or a `guild` directly.
