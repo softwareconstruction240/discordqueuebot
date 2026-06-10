@@ -5,7 +5,7 @@ from help_queue import HelpQueue
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
-from ui.helpers.discord_helpers import update_queue_messages, count_tas_in_voice
+from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from records import QueueEntry
 from datetime import datetime
 from db import daily_reset, auto_queue_scheduler
@@ -43,7 +43,8 @@ class Bot(discord.Client):
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
-        auto_queue_scheduler.start(self)        
+        auto_queue_scheduler.start(self) 
+        asyncio.create_task(self._refresh_queue_status_messages())       
         await self.tree.sync()
 
     async def on_ready(self):
@@ -130,15 +131,17 @@ class Bot(discord.Client):
     async def _get_wait_time(self):
         if not self.queue.is_open:
             return ""
-        # determine number of active TAs (in voice channels)
-        ta_channel = await self._get_ta_channel()
-        num_tas = count_tas_in_voice(guild=ta_channel.guild)
+
+        ta_voice_channel = await self._get_ta_voice_channel()
+        guild = ta_voice_channel.guild if ta_voice_channel else next(iter(self.guilds), None)
+        num_tas = count_total_tas_in_voice(guild=guild)
 
         # compute expected wait time using recent queue history
         from service.queue_history_service import calculate_expected_wait_time
         async with self.queue.lock:
             queue_size = len(self.queue.entries)
         time = calculate_expected_wait_time(num_tas, queue_size)
+        time = max(time, 180)
         minutes = int(time // 60)
         seconds = time % 60
         return f" — expected wait: {minutes}m {seconds}s"
@@ -211,6 +214,16 @@ class Bot(discord.Client):
             return
 
         await student_status_message.edit(content=await self._build_student_status_message())
+
+    async def _refresh_queue_status_messages(self) -> None:
+        while not self.is_closed():
+            try:
+                await asyncio.sleep(60)
+                await update_queue_messages(self)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Queue refresh task error: {e}")
 
 
     async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):

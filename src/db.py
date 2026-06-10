@@ -297,8 +297,6 @@ def get_queue_history_as_csv() -> discord.File:
     data = []
     cursor.execute("SELECT * FROM queue_history")
     for row in cursor.fetchall():
-        for item in row:
-            print(type(item))
         items: list = [item if item is not None else "None" for item in row]
         # calculate time in queue
         enqueue_time = datetime.fromisoformat(row[4])
