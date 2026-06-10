@@ -150,7 +150,7 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
         if self.confirmation.value.lower() != 'y':
             await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
         else:
-            # TODO: update queue_history for each student (add/update a row with done_getting_help_time or time_helped depending on implementation)
+            # TODO: update queue_history for each student if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
 
             await interaction.client.queue.clear()
             await update_queue_messages(interaction.client)
@@ -177,6 +177,8 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         ))
 
     async def on_submit(self, interaction: discord.Interaction):
+        # TODO: update queue_history if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
+
         front_before = await interaction.client.queue.get_front()
         user: discord.User = await interaction.client.fetch_user(self.student_user_id)
         await interaction.client.queue.remove(self.student_user_id)
