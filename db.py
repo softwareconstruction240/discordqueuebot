@@ -48,7 +48,7 @@ def _initialize_database() -> None:
         )
 
         
-        # dequeue_time refers to the TA offering help, as the student is no longer waiting in the queue
+        # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS queue_history (
