@@ -57,7 +57,7 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS queue_history (
                 id INTEGER PRIMARY KEY,
-                student_name STRING,
+                student_discord_name STRING,
                 TA_name STRING,
                 question TEXT,
                 enqueue_time TEXT,
@@ -245,7 +245,7 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
     cursor = conn.cursor()
     cursor.execute(
         """INSERT INTO queue_history (
-            student_name,
+            student_discord_name,
             ta_name,
             question,
             enqueue_time,
