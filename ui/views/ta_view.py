@@ -109,19 +109,21 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
     await dequeue_student(interaction, front_before, entry)
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
-    interaction.client.help_map[interaction.user.name] = add_queue_history_item(entry, interaction.user.name)
+    student = await interaction.guild.fetch_member(entry.user_id)
+    print(entry.user_id)
+    interaction.client.help_map[interaction.user.name] = (add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
 
     await move_to_breakout(interaction, entry)
-
-    # Notify the next student in line only if they changed
-    await notify_next_if_changed(interaction.client, front_before)
-    await update_queue_messages(interaction.client)
 
     if not interaction.response.is_done():
         await interaction.response.send_message(
             NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
             delete_after=DEFAULT_TIMEOUT
         )
+
+    # Notify the next student in line only if they changed
+    await notify_next_if_changed(interaction.client, front_before)
+    await update_queue_messages(interaction.client)
 
 
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
@@ -150,7 +152,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         await interaction.user.move_to(online_ta_vc)
 
         ta_name = interaction.user.name
-        set_time_helped(interaction.client.help_map[ta_name])
+        set_time_helped(interaction.client.help_map[ta_name][0])
         interaction.client.help_map[ta_name] = None
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):

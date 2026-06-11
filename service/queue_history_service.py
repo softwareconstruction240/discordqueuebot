@@ -23,10 +23,9 @@ def calculate_expected_wait_time(num_tas: int, queue_size: int) -> int:
     total_wait = datetime.timedelta()
     for i in range(samples):
         history_item = recent[i]
-        enqueue_time = datetime.datetime.fromisoformat(history_item[4])
-        dequeue_time = datetime.datetime.fromisoformat(history_item[5])
+        enqueue_time = datetime.datetime.fromisoformat(history_item["enqueue_time"])
+        dequeue_time = datetime.datetime.fromisoformat(history_item["dequeue_time"])
         total_wait += dequeue_time - enqueue_time
 
     average_wait: datetime.timedelta = total_wait / samples
-    print(average_wait)
     return int((queue_size / num_tas) * (average_wait.total_seconds()))

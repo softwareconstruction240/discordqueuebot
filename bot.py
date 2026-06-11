@@ -33,7 +33,7 @@ class Bot(discord.Client):
         self.queue_status_message_id: int | None = None
         self.help_queue_count_message_id: int | None = None
         self._player_task: Optional[asyncio.Task] = None
-        self.help_map: map[str, int] = {}
+        self.help_map: map[str, tuple[int, int]] = {}
 
     async def setup_hook(self):
         """

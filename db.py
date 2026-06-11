@@ -235,7 +235,7 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def add_queue_history_item(queue_entry: QueueEntry, ta: str) -> int:
+def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -> int:
     """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
     
     Returns: 
@@ -254,7 +254,7 @@ def add_queue_history_item(queue_entry: QueueEntry, ta: str) -> int:
             in_person
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (queue_entry.student_name, 
+        """, (student_username, 
               ta, 
               queue_entry.details, 
               queue_entry.timestamp.isoformat(), 
@@ -303,12 +303,12 @@ def get_queue_history_as_csv() -> discord.File:
     for row in cursor.fetchall():
         items: list = [item if item is not None else "None" for item in row]
         # calculate time in queue
-        enqueue_time = datetime.fromisoformat(row[4])
-        dequeue_time = datetime.fromisoformat(row[5])
+        enqueue_time = datetime.fromisoformat(row["enqueue_time"])
+        dequeue_time = datetime.fromisoformat(row["dequeue_time"])
         items.append(dequeue_time-enqueue_time)
         #calculate time helped
         try: 
-            finished_time: datetime = datetime.fromisoformat(row[8])
+            finished_time: datetime = datetime.fromisoformat(row["finished_time"])
             items.append(finished_time - dequeue_time)
         except TypeError:
             items.append("None")
