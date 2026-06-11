@@ -53,12 +53,12 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS queue_history (
                 id INTEGER PRIMARY KEY,
-                student_name TEXT NOT NULL,
+                student_username TEXT NOT NULL,
                 TA_name TEXT NOT NULL,
                 question TEXT,
                 enqueue_time TEXT NOT NULL,
                 dequeue_time TEXT NOT NULL,
-                is_passoff INTEGER CHECK (is_passof IN (0,1)),
+                is_passoff INTEGER CHECK (is_passoff IN (0,1)),
                 in_person INTEGER CHECK (in_person IN (0,1)),
                 time_finished TEXT
                 )
@@ -231,14 +231,14 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def record_help_start(user_name: str, student_name: str, removed_by: str, enqueue_time: int, dequeue_time: int, question: str, is_passoff: int, in_person: int) -> None:
+def record_help_start(student_username: str, TA_name: str, question: str, enqueue_time: int, dequeue_time: int, is_passoff: int, in_person: int) -> None:
     """Update queue_history when a TA offers help to a student."""
     # mysql datetime format '2023-12-31 14:30:00.000000'
     # can get the current time with datetime.datetime.now(), which matches with the mysql syntax
     cursor = conn.cursor()
-    cursor.execute("""INSERT INTO queue_history (user_name, student_name, removed_by, enqueue_time, dequeue_time, question, is_passoff, in_person)
+    cursor.execute("""INSERT INTO queue_history (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                   (user_name, student_name, removed_by, enqueue_time, dequeue_time, question, is_passoff, in_person),
+                   (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person),
                 )
 
 # Queue auto-open/close scheduled tasks
