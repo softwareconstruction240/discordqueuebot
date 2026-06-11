@@ -231,7 +231,7 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def record_help_start(student_username: str, TA_name: str, question: str, enqueue_time: int, dequeue_time: int, is_passoff: int, in_person: int) -> None:
+def record_help_start(student_username: str, TA_name: str, question: str, enqueue_time: int, dequeue_time: int, is_passoff: int, in_person: int) -> int:
     """Update queue_history when a TA offers help to a student."""
     # mysql datetime format '2023-12-31 14:30:00.000000'
     # can get the current time with datetime.datetime.now(), which matches with the mysql syntax
@@ -240,6 +240,14 @@ def record_help_start(student_username: str, TA_name: str, question: str, enqueu
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                    (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person),
                 )
+    id = -1 # get actual id
+    return id
+
+def record_help_finish(id: int, time_finished: str) -> None:
+    """Update queue_history when a TA finishes helping a student."""
+
+    cursor = conn.cursor()
+    cursor.execute("""UPDATE queue_history SET time_finished=? WHERE id=?""", (time_finished, id))
 
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
