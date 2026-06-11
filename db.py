@@ -75,7 +75,7 @@ def _initialize_database() -> None:
                 question TEXT,
                 is_passoff Bit,
                 in_person Bit,
-                done_getting_help_time INTEGER,
+                done_getting_help_time DATETIME,
                 )
             """
         )
@@ -246,7 +246,15 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-
+def record_help_start(user_name: str, student_name: str, removed_by: str, enqueue_time: int, dequeue_time: int, question: str, is_passoff: int, in_person: int) -> None:
+    """Update queue_history when a TA offers help to a student."""
+    # mysql datetime format '2023-12-31 14:30:00.000000'
+    # can get the current time with datetime.datetime.now(), which matches with the mysql syntax
+    cursor = conn.cursor()
+    cursor.execute("""INSERT INTO queue_history (user_name, student_name, removed_by, enqueue_time, dequeue_time, question, is_passoff, in_person)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (user_name, student_name, removed_by, enqueue_time, dequeue_time, question, is_passoff, in_person),
+                )
 
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
