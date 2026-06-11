@@ -17,7 +17,6 @@ def calculate_expected_wait_time(num_tas: int, queue_size: int) -> int:
     recent = list(queue_history)[::-1]
     samples = min(5, len(recent))
     if samples == 0:
-        print("no queue history items")
         return 0
 
     total_wait = datetime.timedelta()

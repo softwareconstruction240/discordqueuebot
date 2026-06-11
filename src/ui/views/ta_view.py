@@ -109,7 +109,6 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
     student = await interaction.guild.fetch_member(entry.user_id)
-    print(entry.user_id)
     interaction.client.help_map[interaction.user.name] = (add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
 
     await move_to_breakout(interaction, entry)
@@ -140,7 +139,6 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         if voice_channel == online_ta_vc:
             await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=SHORT_TIMEOUT)
             return
-        await interaction.response.defer()
 
         ta_role: discord.Role = get_role(interaction, "TA")
         for member in voice_channel.members:
@@ -151,8 +149,12 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         await interaction.user.move_to(online_ta_vc)
 
         ta_name = interaction.user.name
-        set_time_helped(interaction.client.help_map[ta_name][0])
-        interaction.client.help_map[ta_name] = None
+        try: 
+            set_time_helped(interaction.client.help_map.pop(ta_name)[0])
+        except (KeyError, TypeError):
+            await interaction.response.send_message("Error: Could not find the student you were helping.", ephemeral=True, delete_after=SHORT_TIMEOUT)
+            return
+        await interaction.response.defer()
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
@@ -227,8 +229,9 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
 
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
     async def display_queue_history(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True, thinking=True)
         csv_file = get_queue_history_as_csv()
-        await interaction.response.send_message(file=csv_file, delete_after=LONG_TIMEOUT)
+        await interaction.followup.send(file=csv_file)
 
 
 class TAView(discord.ui.LayoutView):
