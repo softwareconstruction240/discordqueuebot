@@ -144,7 +144,7 @@ class Bot(discord.Client):
             async with self.queue.lock:
                 queue_size = len(self.queue.entries)
             time = calculate_expected_wait_time(num_tas, queue_size)
-            time = max(time, 60)
+            time = max(time, 180)
         minutes = int(time // 60)
         seconds = time % 60
         return f" — expected wait: {minutes}m {seconds}s"

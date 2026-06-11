@@ -8,9 +8,6 @@ def calculate_expected_wait_time(num_tas: int, queue_size: int) -> int:
     if num_tas == 0:
         num_tas = 1
 
-    if queue_size == 0: 
-        queue_size = 0 
-
     queue_history: list = get_queue_history()
 
     # work on a reversed copy so most recent items are first
