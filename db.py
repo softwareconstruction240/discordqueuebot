@@ -237,7 +237,7 @@ def record_help_start(student_username: str, TA_name: str, question: str, enqueu
     # can get the current time with datetime.datetime.now(), which matches with the mysql syntax
     cursor = conn.cursor()
     cursor.execute("""INSERT INTO queue_history (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                    (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person),
                 )
 
