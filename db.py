@@ -231,10 +231,11 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def record_help_start(student_username: str, TA_name: str, question: str, enqueue_time: int, dequeue_time: int, is_passoff: int, in_person: int) -> int:
+def record_help_start(student_username: str, TA_name: str, question: str, enqueue_time: str, dequeue_time: str, is_passoff: int, in_person: int) -> int:
     """Update queue_history when a TA offers help to a student."""
     # mysql datetime format '2023-12-31 14:30:00.000000'
     # can get the current time with datetime.datetime.now(), which matches with the mysql syntax
+    # update, we're using SQLite for the time being, so times will be stored as text instead of a DATETIME
     cursor = conn.cursor()
     cursor.execute("""INSERT INTO queue_history (student_username, TA_name, question, enqueue_time, dequeue_time, is_passoff, in_person)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
