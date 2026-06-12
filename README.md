@@ -112,9 +112,10 @@ TOKEN=your-discord-bot-token-here
 
 #### 1. Ensure your `.env` file contains the bot token.
 #### 2. If you want voice alerts, place one or more `.mp3` files in the `resources/` folder.
-#### 3. Start the bot from the project root in the virtual environment:
+#### 3. Start the bot from the src directory in the virtual environment:
 
 ```powershell
+cd src
 python bot.py
 ```
 
@@ -130,3 +131,7 @@ python bot.py
 
 - If the bot cannot find the `resources/` folder or no MP3 files are present, it will still run but will not play audio.
 - You can customize channel names and messages in `ui/helpers/constants.py`.
+- To run tests, navigate to the project directory and run the following in the terminal: 
+```powershell
+python -m unittest discover -s tests
+```

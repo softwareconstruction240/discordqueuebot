@@ -1,11 +1,14 @@
+#This import looks redundant but is needed to run tests
+import test_setup
+
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from datetime import datetime
 
 import discord
 
-from records import QueueEntry
-from help_queue import HelpQueue
+from src.records import QueueEntry
+from src.help_queue import HelpQueue
 
 """This file conducts tests on the funcitonality of the Remove button using Mocks to simulate interactions with Discord's APi."""
 # ==========================================================
@@ -29,7 +32,7 @@ def make_mock_interaction(queue: HelpQueue, user_id: int = 999,
                           display_name: str = "TA_Test"):
     """Construct a mock Interaction with a client.queue."""
     mock = MagicMock(spec=discord.Interaction)
-    mock.client = MagicMock()
+    mock.client = AsyncMock()
     mock.client.queue = queue
     mock.user = MagicMock()
     mock.user.id = user_id
@@ -89,14 +92,14 @@ class TestHelpQueue(unittest.IsolatedAsyncioTestCase):
 class TestRemoveStudentViewConstruction(unittest.IsolatedAsyncioTestCase):
 
     def test_options_include_cancel_first(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(1, username="alice")])
         select = view.children[0]
         self.assertEqual(select.options[0].value, "__cancel__")
         self.assertEqual(select.options[0].label, "— Cancel —")
 
     def test_emoji_passoff_vs_question(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         entries = [
             make_entry(1, username="a", is_passoff=True),
             make_entry(2, username="b", is_passoff=False),
@@ -107,17 +110,17 @@ class TestRemoveStudentViewConstruction(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(select.options[2].emoji.name, "❓")
 
     def test_label_prefers_student_name(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(1, username="discord_abc", student_name="张三")])
         self.assertEqual(view.children[0].options[1].label, "张三")
 
     def test_label_falls_back_to_username(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(1, username="discord_abc", student_name="")])
         self.assertEqual(view.children[0].options[1].label, "discord_abc")
 
     def test_label_truncated_at_100_chars(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(1, username="x", student_name="A" * 150)])
         opt = view.children[0].options[1]
         self.assertLessEqual(len(opt.label), 100)
@@ -125,13 +128,13 @@ class TestRemoveStudentViewConstruction(unittest.IsolatedAsyncioTestCase):
 
     def test_description_truncated(self):
         """description is at most 100 characters long (including the "#N " prefix)."""
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(1, username="x", details="D" * 200)])
         opt = view.children[0].options[1]
         self.assertLessEqual(len(opt.description), 100)
 
     def test_value_is_user_id_string(self):
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         view = RemoveStudentView([make_entry(123456, username="alice")])
         self.assertEqual(view.children[0].options[1].value, "123456")
 
@@ -144,7 +147,7 @@ class TestRemoveStudentViewCallback(unittest.IsolatedAsyncioTestCase):
 
     async def test_cancel_option_defers_and_returns(self):
         """Select Cancel → defer and do not show the Modal."""
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
 
@@ -161,7 +164,7 @@ class TestRemoveStudentViewCallback(unittest.IsolatedAsyncioTestCase):
 
     async def test_select_student_sends_modal(self):
         """Select a student → show RemoveConfirmModal with correct parameters."""
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         q = HelpQueue()
         await q.add(make_entry(1, username="alice", student_name="Alice"))
 
@@ -180,7 +183,7 @@ class TestRemoveStudentViewCallback(unittest.IsolatedAsyncioTestCase):
 
     async def test_student_already_removed_by_another_ta(self):
         """Concurrency: the selected student has already been removed by another TA."""
-        from ui.views.ta_view import RemoveStudentView
+        from src.ui.views.ta_view import RemoveStudentView
         q = HelpQueue()
         # entry is not in the queue (simulate already removed)
         entry = make_entry(2, username="bob")
@@ -205,13 +208,13 @@ class TestRemoveStudentViewCallback(unittest.IsolatedAsyncioTestCase):
 class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
 
     def test_init_stores_user_id_and_display_name(self):
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         modal = RemoveConfirmModal(123, "Alice")
         self.assertEqual(modal.student_user_id, 123)
         self.assertEqual(modal.student_name, "Alice")
 
     async def test_on_submit_removes_student(self):
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
         await q.add(make_entry(2, username="bob"))
@@ -223,8 +226,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         mock_user.send = AsyncMock()
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()):
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()):
             modal = RemoveConfirmModal(1, "Alice")
             await modal.on_submit(interaction)
 
@@ -233,7 +236,7 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
 
     async def test_on_submit_notifies_new_front(self):
         """Removing the front of the queue calls notify_next_if_changed to notify the new front."""
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
         await q.add(make_entry(2, username="bob"))
@@ -245,8 +248,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         mock_user.send = AsyncMock()
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()) as mock_notify:
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()) as mock_notify:
             modal = RemoveConfirmModal(1, "Alice")
             await modal.on_submit(interaction)
 
@@ -256,7 +259,7 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
 
     async def test_on_submit_no_notify_when_removed_not_front(self):
         """Removing a non-front student still calls notify_next_if_changed, but the old front remains unchanged."""
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
         await q.add(make_entry(2, username="bob"))
@@ -268,8 +271,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         mock_user.send = AsyncMock()
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()) as mock_notify:
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()) as mock_notify:
             modal = RemoveConfirmModal(2, "Bob")
             await modal.on_submit(interaction)
 
@@ -279,7 +282,7 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mock_notify.call_args[0][1].user_id, 1)
 
     async def test_on_submit_dm_to_student(self):
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
 
@@ -290,8 +293,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         mock_user.send = AsyncMock()
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()):
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()):
             modal = RemoveConfirmModal(1, "Alice")
             await modal.on_submit(interaction)
 
@@ -299,7 +302,7 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         self.assertIn("removed from the CS240 help queue", mock_user.send.call_args[0][0])
 
     async def test_on_submit_dm_includes_reason(self):
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
 
@@ -310,8 +313,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         mock_user.send = AsyncMock()
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()):
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()):
             modal = RemoveConfirmModal(1, "Alice")
             modal.reason = MagicMock()
             modal.reason.value = "Asked too many questions"
@@ -322,7 +325,7 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Asked too many questions", dm_text)
 
     async def test_on_submit_success_message(self):
-        from ui.modals import RemoveConfirmModal
+        from src.ui.modals import RemoveConfirmModal
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
 
@@ -334,8 +337,8 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
         interaction.client.fetch_user = AsyncMock(return_value=mock_user)
         interaction.response.send_message = AsyncMock()
 
-        with patch("ui.modals.update_queue_messages", AsyncMock()), \
-             patch("ui.modals.notify_next_if_changed", AsyncMock()):
+        with patch("src.ui.modals.update_queue_messages", AsyncMock()), \
+            patch("src.ui.modals.notify_next_if_changed", AsyncMock()):
             modal = RemoveConfirmModal(1, "Alice")
             await modal.on_submit(interaction)
 
@@ -351,32 +354,46 @@ class TestRemoveConfirmModal(unittest.IsolatedAsyncioTestCase):
 class TestTAViewRemoveButton(unittest.IsolatedAsyncioTestCase):
 
     async def test_empty_queue_shows_message(self):
-        from ui.views.ta_view import TAView
+        from src.ui.views.ta_view import TAView
         q = HelpQueue()
         interaction = make_mock_interaction(q)
         view = TAView()
 
-        for item in view.children:
-            if item.custom_id == "remove_from_queue":
+        # Find the remove button anywhere in the view hierarchy and trigger it.
+        to_visit = list(view.children)
+        while to_visit:
+            item = to_visit.pop(0)
+            # If this item is a button-like object, it may have a custom_id
+            if getattr(item, "custom_id", None) == "remove_from_queue":
                 await item.callback(interaction)
                 break
+            # Otherwise, if it has children (e.g., a Container/ActionRow), search them
+            children = getattr(item, "children", None)
+            if children:
+                to_visit.extend(children)
 
         interaction.response.send_message.assert_awaited_once()
         msg = interaction.response.send_message.call_args[0][0]
         self.assertEqual(msg, "Queue is empty.")
 
     async def test_nonempty_queue_shows_select_with_legend(self):
-        from ui.views.ta_view import TAView, RemoveStudentView
+        from src.ui.views.ta_view import TAView, RemoveStudentView
         q = HelpQueue()
         await q.add(make_entry(1, username="alice"))
 
         interaction = make_mock_interaction(q)
         view = TAView()
 
-        for item in view.children:
-            if item.custom_id == "remove_from_queue":
+        # Trigger the remove button wherever it exists inside the view
+        to_visit = list(view.children)
+        while to_visit:
+            item = to_visit.pop(0)
+            if getattr(item, "custom_id", None) == "remove_from_queue":
                 await item.callback(interaction)
                 break
+            children = getattr(item, "children", None)
+            if children:
+                to_visit.extend(children)
 
         interaction.response.send_message.assert_awaited_once()
         sent_view = interaction.response.send_message.call_args[1]["view"]
