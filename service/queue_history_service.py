@@ -12,7 +12,7 @@ def calculate_expected_wait_time(num_tas: int, queue_size: int) -> int:
 
     # work on a reversed copy so most recent items are first
     recent = list(queue_history)[::-1]
-    samples = min(5, len(recent))
+    samples = min(20, len(recent))
     if samples == 0:
         return 0
 
