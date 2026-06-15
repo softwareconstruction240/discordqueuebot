@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Optional
 
 import discord
-from db import get_last_incident_info, increment_help, get_student_info
+from db import get_last_incident_info, increment_help, get_student_info, record_help_start, record_help_finish
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NEXT_IN_LINE_MSG, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
@@ -78,8 +79,6 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not entry:
             return await interaction.response.send_message("Queue is empty.", ephemeral=True, delete_after=SHORT_TIMEOUT)
 
-        # TODO: update queue_history (add a row with the dequeue time)
-
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username, entry.student_name)
 
@@ -95,6 +94,8 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
         # Getting an unknown response here :/
         if not interaction.response.is_done():
             await interaction.response.send_message(NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), delete_after=DEFAULT_TIMEOUT)
+        
+        record_help_start(entry.username, interaction.user.name, entry.details, entry.timestamp, datetime.datetime.now(), entry.is_passoff, entry.in_person)
 
     @discord.ui.button(label="Next Student (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -104,8 +105,6 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         if not entry:
             return await interaction.response.send_message("No online students in the queue.", ephemeral=True, delete_after=SHORT_TIMEOUT)
-
-        # TODO: update queue_history (add a row with the dequeue time)
 
         if not entry.is_passoff:
             increment_help(entry.user_id, entry.username, entry.student_name)
@@ -122,6 +121,8 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
                     student=entry.username), 
                     delete_after=DEFAULT_TIMEOUT
             )
+        
+        record_help_start(entry.username, interaction.user.name, entry.details, entry.timestamp, datetime.datetime.now(), entry.is_passoff, entry.in_person)
 
 
 
@@ -136,8 +137,6 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not entry:
             return await interaction.response.send_message("No students awaiting passoff.", ephemeral=True, delete_after=SHORT_TIMEOUT)
 
-        # TODO: update queue_history (add a row with the dequeue time)
-
         await move_to_breakout(interaction, entry)
 
         # Notify the next student in line only if they changed
@@ -149,6 +148,8 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
                 NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
                 delete_after=DEFAULT_TIMEOUT
             )
+        
+        record_help_start(entry.username, interaction.user.name, entry.details, entry.timestamp, datetime.datetime.now(), entry.is_passoff, entry.in_person)
 
     @discord.ui.button(label="Next Passoff (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
     async def next_online_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -159,8 +160,6 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not entry:
             return await interaction.response.send_message("No online students awaiting passoff.", ephemeral=True, delete_after=SHORT_TIMEOUT)
 
-        # TODO: update queue_history (add a row with the dequeue time)
-
         await move_to_breakout(interaction, entry)
 
         # Notify the next student in line only if they changed
@@ -172,13 +171,13 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
                 NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
                 delete_after=DEFAULT_TIMEOUT
             )
+        
+        record_help_start(entry.username, interaction.user.name, entry.details, entry.timestamp, datetime.datetime.now(), entry.is_passoff, entry.in_person)
 
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
         online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
-
-        # TODO: update queue_history (update row with done_getting_help_time or time_helped depending on implementation)
 
         try:
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
@@ -200,6 +199,9 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
                 await member.move_to(None)
         await interaction.user.move_to(online_ta_vc)
         await interaction.response.defer(thinking=False)
+
+        # TODO: find a way to persist the row id so it can be used here
+        record_help_finish(-1, datetime.datetime.now())
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
