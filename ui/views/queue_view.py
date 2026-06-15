@@ -36,7 +36,10 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
 
     @discord.ui.button(label="My Position", style=discord.ButtonStyle.secondary, custom_id="my_position", emoji="📍")
     async def position_btn(self, interaction: discord.Interaction, button):
-        pos = await interaction.client.queue.get_position(interaction.user.id)
+        async with interaction.client.queue.lock:
+            pos = await interaction.client.queue.get_position(interaction.user.id)
+            queue_size = len(interaction.client.queue.entries)
+        
         if pos is None:
             await interaction.response.send_message(
                 "You are not currently in the queue",
@@ -47,8 +50,8 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
             num_tas = count_total_tas_in_voice(interaction=interaction)
             expected_wait = calculate_expected_wait_time(
                 num_tas,
-                len(interaction.client.queue.entries),
-                available_tas= num_tas - len(interaction.client.help_map.keys()),
+                queue_size,
+                available_tas = num_tas - len(interaction.client.help_map.keys()),
                 position=pos,
             )
             await interaction.response.send_message(
