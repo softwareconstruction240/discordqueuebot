@@ -1,6 +1,8 @@
 import datetime
 from db import get_queue_history
 
+class NoTasOnlineError(Exception):
+    pass
 
 def calculate_expected_wait_time(
     num_tas: int,
@@ -18,9 +20,15 @@ def calculate_expected_wait_time(
 
     Default fallback behavior is centralized here so callers only need to pass
     the relevant state and display the resulting number of seconds.
+
+    Returns:
+        wait time in seconds
+
+    Raises:
+        NoTasOnlineError if there are no TAs online
     """
     if num_tas <= 0:
-        num_tas = 1
+        raise NoTasOnlineError
 
     if available_tas is not None and available_tas >= position:
         return 20 * position

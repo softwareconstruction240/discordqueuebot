@@ -44,7 +44,7 @@ class Bot(discord.Client):
         self.add_view(TAView())
         daily_reset.start()
         auto_queue_scheduler.start(self) 
-        asyncio.create_task(self._refresh_queue_status_messages())       
+        asyncio.create_task(self._refresh_queue_status_messages())    
         await self.tree.sync()
 
     async def on_ready(self):
@@ -136,16 +136,20 @@ class Bot(discord.Client):
         ta_voice_channel = await self._get_ta_voice_channel()
         guild = ta_voice_channel.guild if ta_voice_channel else next(iter(self.guilds), None)
         num_tas = count_total_tas_in_voice(guild=guild)
-        from service.queue_history_service import calculate_expected_wait_time
+
+        from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
         async with self.queue.lock:
             queue_size = len(self.queue.entries)
         available_tas = num_tas - len(self.help_map.keys())
         
         #calculate wait time as if you were to join the queue right now
-        time = calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
-        minutes = int(time // 60)
-        seconds = time % 60
-        return f" — expected wait: {minutes}m {seconds}s"
+        try:
+            time = calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
+            minutes = int(time // 60)
+            seconds = time % 60
+            return f" — expected wait: {minutes}m {seconds}s"
+        except NoTasOnlineError:
+            return " — No TAs Online"
     
     async def _build_student_status_message(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
