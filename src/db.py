@@ -268,7 +268,9 @@ def set_time_helped(id: int):
     now = datetime.now()
     cursor = conn.cursor()
     cursor.execute(
-        """UPDATE queue_history SET time_finished = ? WHERE id = ?""", (now.isoformat(), id)
+        """
+        UPDATE queue_history SET finished_time = ? WHERE id = ?
+        """, (now.isoformat(), id)
     )
     conn.commit()
 

@@ -6,7 +6,9 @@ from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
 from ui.helpers.utils import fixed_width
-from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, safe_dm_user, notify_next_if_changed, update_queue_messages
+from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, notify_next_if_changed, update_queue_messages
+
+
 
 
 class RemoveStudentView(discord.ui.View):
