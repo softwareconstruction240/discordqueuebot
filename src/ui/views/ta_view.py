@@ -1,7 +1,7 @@
 from typing import Optional
 
 import discord
-from db import get_last_incident_info, increment_help, get_student_info, set_time_helped, add_queue_history_item, get_queue_history_as_csv
+from db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
@@ -159,7 +159,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         ta_name = interaction.user.name
         try: 
-            set_time_helped(interaction.client.help_map.pop(ta_name)[0])
+            set_time_finished(interaction.client.help_map.pop(ta_name)[0])
         except (KeyError, TypeError):
             await interaction.response.send_message("Error: Could not find the student you were helping.", ephemeral=True, delete_after=SHORT_TIMEOUT)
             return

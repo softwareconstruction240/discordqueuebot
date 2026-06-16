@@ -264,7 +264,7 @@ def _get_dequeue_time(id: int) -> datetime:
     return datetime.fromisoformat(row[0])
     
 
-def set_time_helped(id: int):
+def set_time_finished(id: int):
     now = datetime.now()
     cursor = conn.cursor()
     cursor.execute(

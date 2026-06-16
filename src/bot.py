@@ -8,7 +8,7 @@ from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOI
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from records import QueueEntry
 from datetime import datetime
-from db import daily_reset, auto_queue_scheduler, set_time_helped
+from db import daily_reset, auto_queue_scheduler, set_time_finished
 
 import os
 import random
@@ -253,7 +253,7 @@ class Bot(discord.Client):
                 # remove them from the help_map and update the db table
                 for ta in tas_to_remove:
                     tableid, _ = self.help_map.pop(ta)
-                    set_time_helped(tableid)
+                    set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
             except Exception as e:
