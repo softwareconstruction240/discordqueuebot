@@ -138,7 +138,7 @@ class Bot(discord.Client):
         guild = ta_voice_channel.guild if ta_voice_channel else next(iter(self.guilds), None)
         num_tas = count_total_tas_in_voice(guild=guild)
 
-        from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
+        from src.service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
         async with self.queue.lock:
             queue_size = len(self.queue.entries)
         available_tas = num_tas - len(self.help_map.keys())

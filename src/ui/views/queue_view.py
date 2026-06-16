@@ -4,7 +4,7 @@ from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
 from ui.helpers.queue_helpers import can_join_queue
-from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
+from src.service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
 
 class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Need Help", style=discord.ButtonStyle.primary, custom_id="need_help", emoji="🙏")
