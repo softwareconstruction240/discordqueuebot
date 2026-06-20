@@ -1,10 +1,15 @@
+import io
 import sqlite3
 import discord
+import csv
 from datetime import date, datetime, time
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 from discord.ext import tasks
+from discord.utils import get
+from records import QueueEntry
 from ui.helpers.discord_helpers import update_queue_messages
+from ui.helpers.constants import TA_TEXT_CHANNEL_NAME
 
 conn: sqlite3.Connection = sqlite3.connect("./resources/queue.db", detect_types=sqlite3.PARSE_DECLTYPES)
 conn.row_factory = sqlite3.Row
@@ -29,8 +34,8 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS bot_incidents (
                 id INTEGER PRIMARY KEY,
-                last_incident TEXT,
-                last_issue TEXT
+                incident_timestamp TEXT,
+                incident TEXT
             )
             """
         )
@@ -45,16 +50,15 @@ def _initialize_database() -> None:
                 close_minute INTEGER DEFAULT 0
             )
             """
-        )
-
+        )        
         
         # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS queue_history (
                 id INTEGER PRIMARY KEY,
-                student_name TEXT NOT NULL,
-                TA_name TEXT NOT NULL,
+                student_discord_name TEXT,
+                TA_name TEXT,
                 question TEXT,
                 enqueue_time TEXT NOT NULL,
                 dequeue_time TEXT NOT NULL,
@@ -65,6 +69,7 @@ def _initialize_database() -> None:
             """
         )
 
+
         # Ensure queue_settings has a default row
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM queue_settings")
@@ -74,21 +79,6 @@ def _initialize_database() -> None:
 
 _initialize_database()
 
-@tasks.loop(
-    time=time(
-        hour=23,
-        minute=59,
-        tzinfo=ZoneInfo("America/Denver")
-    )
-)
-async def daily_reset() -> None:
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE user_stats SET daily_help = 0"
-    )
-    conn.commit()
-
-    print("Daily help counts reset.")
 
 
 def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None) -> None:
@@ -144,26 +134,25 @@ def _update_student_name(user_id: int, student_name: str) -> None:
 def record_bot_issue(timestamp: datetime, issue: str) -> None:
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO bot_incidents (id, last_incident, last_issue) VALUES (1, ?, ?)"
-        " ON CONFLICT(id) DO UPDATE SET last_incident = ?, last_issue = ?",
-        (timestamp.isoformat(), issue, timestamp.isoformat(), issue),
+        "INSERT INTO bot_incidents (incident_timestamp, incident) VALUES (?, ?)",
+        (timestamp.isoformat(), issue)
     )
     conn.commit()
 
 
 def get_last_incident_info() -> tuple[Optional[int], Optional[str]]:
     cursor = conn.cursor()
-    cursor.execute("SELECT last_incident, last_issue FROM bot_incidents WHERE id = 1")
+    cursor.execute("SELECT incident_timestamp, incident FROM bot_incidents ORDER BY incident_timestamp DESC LIMIT 1")
     row = cursor.fetchone()
     if not row or not row[0]:
         return None, None
 
     try:
-        last_incident = datetime.fromisoformat(row[0])
+        last_incident_time = datetime.fromisoformat(row[0])
     except ValueError:
         return None, row[1] or None
 
-    delta = datetime.now() - last_incident
+    delta = datetime.now() - last_incident_time
     return delta.days, row[1] or None
 
 
@@ -231,25 +220,153 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
+def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -> int:
+    """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
+    
+    Returns: 
+        int => id of queue history item
+    """
+    dequeue_time = datetime.now()
+    cursor = conn.cursor()
+    cursor.execute(
+        """INSERT INTO queue_history (
+            student_discord_name,
+            ta_name,
+            question,
+            enqueue_time,
+            dequeue_time,
+            passoff,
+            in_person
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (student_username, 
+              ta, 
+              queue_entry.details, 
+              queue_entry.timestamp.isoformat(), 
+              dequeue_time.isoformat(), 
+              1 if queue_entry.is_passoff else 0, 
+              1 if queue_entry.in_person else 0
+              )
+    )
+    generated_id = cursor.lastrowid
+    conn.commit()
+
+    return generated_id
+
+def _get_dequeue_time(id: int) -> datetime:
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT dequeue_time FROM queue_history WHERE id = ?
+        """, (id)
+    )
+    row = cursor.fetchone()
+    return datetime.fromisoformat(row[0])
+    
+
+def set_time_finished(id: int):
+    now = datetime.now()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE queue_history SET finished_time = ? WHERE id = ?
+        """, (now.isoformat(), id)
+    )
+    conn.commit()
+
+def get_queue_history_as_csv() -> discord.File:
+    # build header from column names
+    cursor = conn.cursor()
+    cursor.execute("""PRAGMA table_info(queue_history)""")
+    header = [row[1] for row in cursor.fetchall()]
+    header.append("time_in_queue")
+    header.append("time_helped")
+
+    #build rows
+    data = []
+    cursor.execute("SELECT * FROM queue_history")
+    for row in cursor.fetchall():
+        items: list = [item if item is not None else "None" for item in row]
+        # calculate time in queue
+        enqueue_time = datetime.fromisoformat(row["enqueue_time"])
+        dequeue_time = datetime.fromisoformat(row["dequeue_time"])
+        items.append(dequeue_time-enqueue_time)
+        #calculate time helped
+        try: 
+            finished_time: datetime = datetime.fromisoformat(row["finished_time"])
+            items.append(finished_time - dequeue_time)
+        except TypeError:
+            items.append("None")
+        data.append(items)
+
+    buffer = io.StringIO()        
+    writer = csv.writer(buffer)
+    writer.writerow(header)
+    writer.writerows(data)
+
+    file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
+    return file
+
+def get_queue_history() -> list:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM queue_history")
+    return [row for row in cursor.fetchall()]
+    
+
+#Reset daily help queue counts
+@tasks.loop(
+    time=time(
+        hour=23,
+        minute=59,
+        tzinfo=ZoneInfo("America/Denver")
+    )
+)
+async def daily_reset() -> None:
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE user_stats SET daily_help = 0"
+    )
+    conn.commit()
+
+    print("Daily help counts reset.")
 
 
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
 async def auto_queue_scheduler(bot_client: discord.Client) -> None:
-    """Check if queue should be auto-opened or auto-closed every minute."""
+    """Check if queue should be auto-opened or auto-closed every minute on weekdays only."""
     open_hour, open_minute, close_hour, close_minute = get_queue_times()
     denver_tz = ZoneInfo("America/Denver")
-    current_time = datetime.now(denver_tz)
+    current_time = datetime.now(denver_tz) 
+    
+    # Only run on weekdays (Monday-Friday; 5=Saturday, 6=Sunday)
+    if current_time.weekday() >= 5:
+        return
+    
+    # Get TA text channel
+    ta_channel = None
+    for guild in bot_client.guilds:
+        ta_channel = get(guild.text_channels, name=TA_TEXT_CHANNEL_NAME)
+        if ta_channel:
+            break
     
     # Check if we should open (at the configured open time)
     if current_time.hour == open_hour and current_time.minute == open_minute and not bot_client.queue.is_open:
         bot_client.queue.is_open = True
-        print(f"Queue auto-opened at {current_time.strftime('%H:%M')}")
+        message = f"Queue auto-opened at {current_time.strftime('%H:%M')}"
+        if ta_channel:
+            await ta_channel.send(message, delete_after=30)
+        else:
+            print(message)
         await update_queue_messages(bot_client)
 
     
     # Check if we should close (at the configured close time)
     elif current_time.hour == close_hour and current_time.minute == close_minute and bot_client.queue.is_open:
         bot_client.queue.is_open = False
-        print(f"Queue auto-closed at {current_time.strftime('%H:%M')}")
+        message = f"Queue auto-closed at {current_time.strftime('%H:%M')}"
+        if ta_channel:
+            await ta_channel.send(message, delete_after=30)
+        else:
+            print(message)
         await update_queue_messages(bot_client)

@@ -5,10 +5,10 @@ from help_queue import HelpQueue
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
-from ui.helpers.discord_helpers import update_queue_messages
+from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from records import QueueEntry
 from datetime import datetime
-from db import daily_reset, auto_queue_scheduler
+from db import daily_reset, auto_queue_scheduler, set_time_finished
 
 import os
 import random
@@ -33,19 +33,19 @@ class Bot(discord.Client):
         self.queue_status_message_id: int | None = None
         self.help_queue_count_message_id: int | None = None
         self._player_task: Optional[asyncio.Task] = None
+        self.help_map: map[str, tuple[int, int]] = {}
 
     async def setup_hook(self):
         """
         Initializes bot UI components (views) and starts background scheduling tasks 
         before the bot fully connects to Discord.
         """
-        # guild = self.get_guild(1503856452027023451)
-        # print(guild.name)
-        # self.tree.copy_global_to(guild=guild)
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
-        auto_queue_scheduler.start(self)        
+        auto_queue_scheduler.start(self) 
+        asyncio.create_task(self._refresh_queue_status_messages())    
+        asyncio.create_task(self._refresh_help_map()) 
         await self.tree.sync()
 
     async def on_ready(self):
@@ -84,7 +84,6 @@ class Bot(discord.Client):
                 vc = channel.guild.voice_client
                 if vc is None:
                     vc = await channel.connect()
-                    print("Theoretically I should've connected to the channel")
 
                 # choose random mp3
                 chosen = None
@@ -98,7 +97,6 @@ class Bot(discord.Client):
                         vc.stop()
                     source = discord.FFmpegPCMAudio(chosen)
                     vc.play(source)
-                    print("sound played")
                     # wait until finished or 60s
                     waited = 0
                     while vc.is_playing() and waited < 120:
@@ -130,13 +128,46 @@ class Bot(discord.Client):
         for guild in self.guilds:
             return get(guild.text_channels, name=HELP_CHANNEL_NAME)
         return None
+    
+    async def _get_wait_time(self):
+        if not self.queue.is_open:
+            return ""
 
-    async def _build_queue_status(self) -> str:
+        # compute expected wait time using recent queue history, available tas, and queue size
+        ta_voice_channel = await self._get_ta_voice_channel()
+        guild = ta_voice_channel.guild if ta_voice_channel else next(iter(self.guilds), None)
+        num_tas = count_total_tas_in_voice(guild=guild)
+
+        from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
+        async with self.queue.lock:
+            queue_size = len(self.queue.entries)
+        available_tas = num_tas - len(self.help_map.keys())
+        
+        #calculate wait time as if you were to join the queue right now
+        try:
+            time = calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
+            minutes = int(time // 60)
+            seconds = time % 60
+            return f" — expected wait: {minutes}m {seconds}s"
+        except NoTasOnlineError:
+            return " — No TAs Online"
+    
+    async def _build_student_status_message(self) -> str:
+        status = "OPEN" if self.queue.is_open else "CLOSED"
+        async with self.queue.lock:
+            count = len(self.queue.entries)
+        wait_text = await self._get_wait_time()
+        return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue{wait_text}**"
+
+
+    async def _build_ta_status_message(self) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         queue_text = await self.queue.view()
-        return f"**Help Queue Status: {status}**\n{queue_text}"
+        wait_text = await self._get_wait_time()
 
-    async def _get_status_message(self) -> discord.Message | None:
+        return f"**Help Queue Status: {status}{wait_text}**\n{queue_text}"
+
+    async def _get_ta_status_message(self) -> discord.Message | None:
         ta_channel = await self._get_ta_channel()
         if ta_channel is None:
             return None
@@ -152,24 +183,11 @@ class Bot(discord.Client):
                 self.queue_status_message_id = message.id
                 return message
 
-        status_message = await ta_channel.send(await self._build_queue_status())
+        status_message = await ta_channel.send(await self._build_ta_status_message())
         self.queue_status_message_id = status_message.id
         return status_message
 
-    async def update_status_for_students(self) -> None:
-        status_message = await self._get_status_message()
-        if status_message is None:
-            return
-
-        await status_message.edit(content=await self._build_queue_status())
-
-    async def _build_help_queue_count(self) -> str:
-        status = "OPEN" if self.queue.is_open else "CLOSED"
-        async with self.queue.lock:
-            count = len(self.queue.entries)
-        return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue**"
-
-    async def _get_count_message(self) -> discord.Message | None:
+    async def _get_student_status_message(self) -> discord.Message | None:
         help_channel = await self._get_help_channel()
         if help_channel is None:
             return None
@@ -185,16 +203,63 @@ class Bot(discord.Client):
                 self.help_queue_count_message_id = message.id
                 return message
 
-        count_message = await help_channel.send(await self._build_help_queue_count())
+        count_message = await help_channel.send(await self._build_student_status_message())
         self.help_queue_count_message_id = count_message.id
         return count_message
 
-    async def update_status_for_tas(self) -> None:
-        count_message = await self._get_count_message()
-        if count_message is None:
+    async def update_ta_status_message(self) -> None:
+        ta_status_message = await self._get_ta_status_message()
+        if ta_status_message is None:
             return
 
-        await count_message.edit(content=await self._build_help_queue_count())
+        await ta_status_message.edit(content=await self._build_ta_status_message())
+
+    async def update_student_status_message(self) -> None:
+        student_status_message = await self._get_student_status_message()
+        if student_status_message is None:
+            return
+
+        await student_status_message.edit(content=await self._build_student_status_message())
+
+    async def _refresh_queue_status_messages(self) -> None:
+        while not self.is_closed():
+            try:
+                await asyncio.sleep(60)
+                await update_queue_messages(self)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Queue refresh task error: {e}")
+
+    async def _refresh_help_map(self) -> None:
+        """Removes any TAs not currently online from the help_map to avoid problems with TAs forgetting to click "finish helping student"."""
+        while True:
+            try:
+                await asyncio.sleep(60*20)
+                
+                # get all online TAs
+                for guild in self.guilds:
+                    online_ta_names = []
+                    ta_role = get(guild.roles, name="TA")
+                    for voice_channel in guild.voice_channels:
+                        online_ta_names.extend([member.name for member in voice_channel.members if ta_role in getattr(member, "roles", [])])
+                    
+                # deduce which TAs should no longer be helping students
+                tas_to_remove = []
+                for name in self.help_map.keys():
+                    if name not in online_ta_names:
+                        tas_to_remove.append(name)
+                
+                # remove them from the help_map and update the db table
+                for ta in tas_to_remove:
+                    tableid, _ = self.help_map.pop(ta)
+                    set_time_finished(tableid)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Refresh Help map task error: {e}")
+
+
 
     async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
         """

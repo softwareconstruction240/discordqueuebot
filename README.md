@@ -1,14 +1,10 @@
 # discordqueuebot
 A help queue bot for the CS 240 Discord server.
 
-## Overview
-
-This bot manages a help queue in Discord, with TA controls, automatic queue open/close announcements, and voice notifications using MP3 files in the `resources/` folder.
-
 ## Requirements
 
-- Python 3.10 or newer (3.11+ recommended)
-- `ffmpeg` installed and available on your PATH for voice audio playback
+- Python 3.11+
+- `ffmpeg` installed and available on your PATH
 - A Discord application with bot token
 
 ## Python / VS Code setup
@@ -21,12 +17,16 @@ Go to https://www.python.org/downloads/. On Windows, enable "Add Python to PATH"
 
 Open the project folder in VS Code.
 
-
 > [!IMPORTANT]
 > Step 3 is optional, but highly recommended
 #### 3. Create and run a virtual environment in the project root:
 
 Refer to the internet for help on this one. It's different depending on your system.
+If you're using powershell, do   
+```
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
 #### 4. Upgrade pip and install dependencies:
 
@@ -66,8 +66,8 @@ The bot expects the following channel and role names by default. Names are case-
   - `Bot` (so you can give it channel-specific permissions manually)
 
 Suggested permissions: 
-  - Restrict channel management server-wide.
-  - Allow Bot to Move Members server-wide.
+  - Restrict channel management server-wide for @everyone. Keep it enabled for @TA.
+  - Allow Bot to Move Members between Voice Channels server-wide.
   - help-queue-chat: @everyone restrict messages/threads, etc. Keep reactions enabled. @TA and @Bot all permissions.
   - ta-bot-chat: @everyone cannot see the channel. @TA and @Bot all permissions.
   - Online TAs: @everyone cannot join the channel. @TA and @Bot all permissions.
@@ -87,7 +87,7 @@ Suggested permissions:
 Create a file named `.env` in the `src/resources` directory with the following contents:
 
 ```txt
-TOKEN=your-discord-bot-token-here
+TOKEN=your-token-here
 ```
 
 #### 5. Under OAuth2 > URL Generator, enable scopes:
@@ -129,7 +129,7 @@ python bot.py
 
 ## Notes
 
-- If the bot cannot find the `resources/` folder or no MP3 files are present, it will still run but will not play audio.
+- If the bot cannot find the `resources/` folder or no MP3 files are present, or you don't have fmpegg installed, it will still run but will not play audio.
 - You can customize channel names and messages in `ui/helpers/constants.py`.
 - To run tests, navigate to the project directory and run the following in the terminal: 
 ```powershell

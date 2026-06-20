@@ -17,6 +17,40 @@ def get_next_available_breakout(interaction: discord.Interaction):
 
     return None
 
+
+def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta_role_name: str = "TA") -> int:
+    """Return the number of unique TA users in a specific voice channel."""
+    if voice_channel is None:
+        return 0
+
+    ta_role = discord_get(voice_channel.guild.roles, name=ta_role_name)
+    if ta_role is None:
+        return 0
+
+    return sum(1 for member in voice_channel.members if ta_role in getattr(member, "roles", []))
+
+
+def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
+    """Return the number of unique users with the TA role who are in any voice channel.
+
+    Accepts either an `interaction` (and uses `interaction.guild`) or a `guild` directly.
+    """
+    if interaction is None and guild is None:
+        return 0
+
+    guild = guild or interaction.guild
+    ta_role = discord_get(guild.roles, name=ta_role_name)
+    if ta_role is None:
+        return 0
+
+    ta_ids = set()
+    for vc in guild.voice_channels:
+        for member in vc.members:
+            if ta_role in getattr(member, "roles", []):
+                ta_ids.add(member.id)
+
+    return len(ta_ids)
+
 async def safe_dm_user(client: discord.Client, user_id: int, message: str) -> None:
     try:
         user = await client.fetch_user(user_id)
@@ -30,10 +64,10 @@ async def notify_next_if_changed(client: discord.Client, before: Optional[QueueE
         await safe_dm_user(client, after.user_id, NEXT_IN_LINE_MSG)
 
 async def update_queue_messages(client: discord.Client) -> None:
-    if hasattr(client, "update_status_for_students"):
-        await client.update_status_for_students()
-    if hasattr(client, "update_status_for_tas"):
-        await client.update_status_for_tas()
+    if hasattr(client, "update_student_status_message"):
+        await client.update_student_status_message()
+    if hasattr(client, "update_ta_status_message"):
+        await client.update_ta_status_message()
 
 async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     student: discord.Member = interaction.guild.get_member(entry.user_id)

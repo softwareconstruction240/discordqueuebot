@@ -2,8 +2,9 @@ import discord
 from db import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT
-from ui.helpers.discord_helpers import update_queue_messages
+from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
 from ui.helpers.queue_helpers import can_join_queue
+from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
 
 class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Need Help", style=discord.ButtonStyle.primary, custom_id="need_help", emoji="🙏")
@@ -38,6 +39,8 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="My Position", style=discord.ButtonStyle.secondary, custom_id="my_position", emoji="📍")
     async def position_btn(self, interaction: discord.Interaction, button):
         pos = await interaction.client.queue.get_position(interaction.user.id)
+        queue_size = len(interaction.client.queue.entries)
+        
         if pos is None:
             await interaction.response.send_message(
                 "You are not currently in the queue",
@@ -45,11 +48,26 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
                 delete_after=DEFAULT_TIMEOUT,
             )
         else:
-            await interaction.response.send_message(
-                f"You are currently #{pos} in the queue",
-                ephemeral=True,
-                delete_after=DEFAULT_TIMEOUT,
-            )
+            num_tas = count_total_tas_in_voice(interaction=interaction)
+            try:
+                expected_wait = calculate_expected_wait_time(
+                    num_tas,
+                    queue_size,
+                    available_tas = num_tas - len(interaction.client.help_map.keys()),
+                    position=pos,
+                )
+                await interaction.response.send_message(
+                    f"You are currently #{pos} in the queue. You will be helped in approximately {expected_wait // 60}m {expected_wait % 60}s.",
+                    ephemeral=True,
+                    delete_after=DEFAULT_TIMEOUT,
+                )
+            except NoTasOnlineError:
+                await interaction.response.send_message(
+                    f"You are currently #{pos} in the queue. There are no TAs online, so we cannot estimate your wait time.",
+                    ephemeral=True,
+                    delete_after=DEFAULT_TIMEOUT,
+                )
+            
 class EsotericCommands(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Report Bot Problem", style=discord.ButtonStyle.secondary, custom_id="report_bot_problem", emoji="☢️")
     async def report_bot_problem_btn(self, interaction: discord.Interaction, button):
