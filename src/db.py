@@ -235,7 +235,7 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
             question,
             enqueue_time,
             dequeue_time,
-            passoff,
+            is_passoff,
             in_person
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -258,7 +258,7 @@ def _get_dequeue_time(id: int) -> datetime:
     cursor.execute(
         """
         SELECT dequeue_time FROM queue_history WHERE id = ?
-        """, (id)
+        """, (id,)
     )
     row = cursor.fetchone()
     return datetime.fromisoformat(row[0])
@@ -269,7 +269,7 @@ def set_time_finished(id: int):
     cursor = conn.cursor()
     cursor.execute(
         """
-        UPDATE queue_history SET finished_time = ? WHERE id = ?
+        UPDATE queue_history SET time_finished = ? WHERE id = ?
         """, (now.isoformat(), id)
     )
     conn.commit()
@@ -293,8 +293,8 @@ def get_queue_history_as_csv() -> discord.File:
         items.append(dequeue_time-enqueue_time)
         #calculate time helped
         try: 
-            finished_time: datetime = datetime.fromisoformat(row["finished_time"])
-            items.append(finished_time - dequeue_time)
+            time_finished: datetime = datetime.fromisoformat(row["time_finished"])
+            items.append(time_finished - dequeue_time)
         except TypeError:
             items.append("None")
         data.append(items)
