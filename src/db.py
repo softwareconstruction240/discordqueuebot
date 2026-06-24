@@ -2,7 +2,7 @@ import io
 import sqlite3
 import discord
 import csv
-from datetime import date, datetime, time
+from datetime import datetime, time, UTC
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 from discord.ext import tasks
@@ -24,8 +24,7 @@ def _initialize_database() -> None:
                 user_name STRING,
                 student_name STRING,
                 total_help INTEGER DEFAULT 0,
-                daily_help INTEGER DEFAULT 0,
-                last_reset TEXT
+                daily_help INTEGER DEFAULT 0
             )
             """
         )
@@ -34,6 +33,7 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS bot_incidents (
                 id INTEGER PRIMARY KEY,
+                reported_by VARCHAR(50),
                 incident_timestamp TEXT,
                 incident TEXT
             )
@@ -94,14 +94,14 @@ def increment_help(user_id: int, user_name: str, student_name: Optional[str] = N
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help, last_reset)
-        VALUES (?, ?, ?, 1, 1, ?)
+        INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help)
+        VALUES (?, ?, ?, 1, 1)
         ON CONFLICT(user_id) DO UPDATE SET
             user_name = ?,
             total_help = total_help + 1,
             daily_help = daily_help + 1
         """,
-        (user_id, user_name, student_name or "", str(date.today()), user_name),
+        (user_id, user_name, student_name or "", user_name),
     )
 
     if student_name:
@@ -131,29 +131,34 @@ def _update_student_name(user_id: int, student_name: str) -> None:
         )
         conn.commit()
 
-def record_bot_issue(timestamp: datetime, issue: str) -> None:
+def record_bot_issue(username: str, issue: str) -> None:
     cursor = conn.cursor()
+    timestamp = datetime.now(UTC)
     cursor.execute(
-        "INSERT INTO bot_incidents (incident_timestamp, incident) VALUES (?, ?)",
-        (timestamp.isoformat(), issue)
+        "INSERT INTO bot_incidents (incident_timestamp, reported_by, incident) VALUES (?, ?, ?)",
+        (timestamp.isoformat(), username, issue)
     )
     conn.commit()
 
 
-def get_last_incident_info() -> tuple[Optional[int], Optional[str]]:
+def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str]]:
+    """Get information for most recent bot issue. 
+    Returns:
+        A tuple of 3 elements containing the user who reported the issue, the number of days since the issue, and the issue description, in that order."""
     cursor = conn.cursor()
-    cursor.execute("SELECT incident_timestamp, incident FROM bot_incidents ORDER BY incident_timestamp DESC LIMIT 1")
+    cursor.execute("SELECT reported_by, incident_timestamp, incident FROM bot_incidents ORDER BY incident_timestamp DESC LIMIT 1")
     row = cursor.fetchone()
-    if not row or not row[0]:
-        return None, None
+    if not row:
+        return None, None, None
 
     try:
-        last_incident_time = datetime.fromisoformat(row[0])
+        last_incident_time = datetime.fromisoformat(row["incident_timestamp"])
     except ValueError:
-        return None, row[1] or None
+        return row["reported_by"] or None, None, row["incident"] or None
 
-    delta = datetime.now() - last_incident_time
-    return delta.days, row[1] or None
+    delta = datetime.now(UTC) - last_incident_time
+    print(delta)
+    return row["reported_by"] or None, delta.days, row["incident"] or None
 
 
 def get_student_info() -> tuple[List[str], List[tuple[str, int, int]]]:
@@ -226,7 +231,7 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
     Returns: 
         int => id of queue history item
     """
-    dequeue_time = datetime.now()
+    dequeue_time = datetime.now(UTC)
     cursor = conn.cursor()
     cursor.execute(
         """INSERT INTO queue_history (
@@ -261,11 +266,11 @@ def _get_dequeue_time(id: int) -> datetime:
         """, (id,)
     )
     row = cursor.fetchone()
-    return datetime.fromisoformat(row[0])
+    return datetime.fromisoformat(row[0]).astimezone(ZoneInfo("America/Denver"))
     
 
 def set_time_finished(id: int):
-    now = datetime.now()
+    now = datetime.now(UTC)
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -286,7 +291,19 @@ def get_queue_history_as_csv() -> discord.File:
     data = []
     cursor.execute("SELECT * FROM queue_history")
     for row in cursor.fetchall():
-        items: list = [item if item is not None else "None" for item in row]
+        items:list = []
+        items.append(row["id"])
+        items.append(row["student_discord_name"])
+        items.append(row["TA_name"])
+        items.append(row["question"])
+
+        items.append(to_denver_time(row["enqueue_time"]))
+        items.append(to_denver_time(row["dequeue_time"]))
+
+        items.append(row["is_passoff"])
+        items.append(row["in_person"])
+        items.append(to_denver_time(row["time_finished"]))
+        
         # calculate time in queue
         enqueue_time = datetime.fromisoformat(row["enqueue_time"])
         dequeue_time = datetime.fromisoformat(row["dequeue_time"])
@@ -306,6 +323,14 @@ def get_queue_history_as_csv() -> discord.File:
 
     file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
     return file
+
+def to_denver_time(time: str) -> datetime | None:
+    if time is None:
+        return None
+    
+    time_data: datetime = datetime.fromisoformat(time)
+    return time_data.astimezone(ZoneInfo("America/Denver"))
+
 
 def get_queue_history() -> list:
     cursor = conn.cursor()

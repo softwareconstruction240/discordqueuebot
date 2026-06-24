@@ -209,13 +209,11 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
     @discord.ui.button(label="Days Since Last Incident", style=discord.ButtonStyle.secondary, custom_id="days_since_incident", emoji="⚠️")
     async def days_since_incident_btn(self, interaction: discord.Interaction, button):
-        days, issue_text = get_last_incident_info()
+        reported_by, days, issue_text = get_last_incident_info()
         if days is None:
             message = "No incidents have been reported yet."
-        elif days == 1:
-            message = f"1 day since last incident. Description: {issue_text or 'No description provided.'}"
         else:
-            message = f"{days} days since last incident. Description: {issue_text or 'No description provided.'}"
+            message = f"{days} day{'' if days == 1 else 's'} since last incident. Description: {issue_text or 'No description provided'}\nContact {reported_by} for more information."
 
         await interaction.response.send_message(message, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
 

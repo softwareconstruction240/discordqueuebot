@@ -3,7 +3,7 @@ import test_setup
 
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from datetime import datetime
+from datetime import datetime, UTC
 
 import discord
 
@@ -23,7 +23,7 @@ def make_entry(user_id: int, username: str = "", student_name: str = "",
         student_name=student_name,
         details=details,
         is_passoff=is_passoff,
-        timestamp=datetime.now(),
+        timestamp=datetime.now(UTC),
         in_person=in_person,
     )
 
