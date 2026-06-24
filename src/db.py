@@ -2,7 +2,7 @@ import io
 import sqlite3
 import discord
 import csv
-from datetime import date, datetime, time, timezone
+from datetime import datetime, time, UTC
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 from discord.ext import tasks
@@ -24,7 +24,7 @@ def _initialize_database() -> None:
                 user_name STRING,
                 student_name STRING,
                 total_help INTEGER DEFAULT 0,
-                daily_help INTEGER DEFAULT 0,
+                daily_help INTEGER DEFAULT 0
             )
             """
         )
@@ -95,7 +95,7 @@ def increment_help(user_id: int, user_name: str, student_name: Optional[str] = N
     cursor.execute(
         """
         INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help)
-        VALUES (?, ?, ?, 1, 1, ?)
+        VALUES (?, ?, ?, 1, 1)
         ON CONFLICT(user_id) DO UPDATE SET
             user_name = ?,
             total_help = total_help + 1,
@@ -133,7 +133,7 @@ def _update_student_name(user_id: int, student_name: str) -> None:
 
 def record_bot_issue(username: str, issue: str) -> None:
     cursor = conn.cursor()
-    timestamp = datetime.now(tz=timezone.utc)
+    timestamp = datetime.now(UTC)
     cursor.execute(
         "INSERT INTO bot_incidents (incident_timestamp, reported_by, incident) VALUES (?, ?, ?)",
         (timestamp.isoformat(), username, issue)
@@ -156,7 +156,8 @@ def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str
     except ValueError:
         return row["reported_by"] or None, None, row["incident"] or None
 
-    delta = datetime.now(tz=timezone.utc) - last_incident_time
+    delta = datetime.now(UTC) - last_incident_time
+    print(delta)
     return row["reported_by"] or None, delta.days, row["incident"] or None
 
 
@@ -230,7 +231,7 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
     Returns: 
         int => id of queue history item
     """
-    dequeue_time = datetime.now()
+    dequeue_time = datetime.now(UTC)
     cursor = conn.cursor()
     cursor.execute(
         """INSERT INTO queue_history (
@@ -265,11 +266,11 @@ def _get_dequeue_time(id: int) -> datetime:
         """, (id,)
     )
     row = cursor.fetchone()
-    return datetime.fromisoformat(row[0])
+    return datetime.fromisoformat(row[0]).astimezone(ZoneInfo("America/Denver"))
     
 
 def set_time_finished(id: int):
-    now = datetime.now()
+    now = datetime.now(UTC)
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -290,7 +291,19 @@ def get_queue_history_as_csv() -> discord.File:
     data = []
     cursor.execute("SELECT * FROM queue_history")
     for row in cursor.fetchall():
-        items: list = [item if item is not None else "None" for item in row]
+        items:list = []
+        items.append(row["id"])
+        items.append(row["student_discord_name"])
+        items.append(row["TA_name"])
+        items.append(row["question"])
+
+        items.append(to_denver_time(row["enqueue_time"]))
+        items.append(to_denver_time(row["dequeue_time"]))
+
+        items.append(row["is_passoff"])
+        items.append(row["in_person"])
+        items.append(to_denver_time(row["time_finished"]))
+        
         # calculate time in queue
         enqueue_time = datetime.fromisoformat(row["enqueue_time"])
         dequeue_time = datetime.fromisoformat(row["dequeue_time"])
@@ -310,6 +323,14 @@ def get_queue_history_as_csv() -> discord.File:
 
     file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
     return file
+
+def to_denver_time(time: str) -> datetime | None:
+    if time is None:
+        return None
+    
+    time_data: datetime = datetime.fromisoformat(time)
+    return time_data.astimezone(ZoneInfo("America/Denver"))
+
 
 def get_queue_history() -> list:
     cursor = conn.cursor()

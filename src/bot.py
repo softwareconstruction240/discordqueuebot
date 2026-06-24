@@ -7,7 +7,7 @@ from ui.views.ta_view import TAView
 from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from records import QueueEntry
-from datetime import datetime
+from datetime import datetime, UTC
 from db import daily_reset, auto_queue_scheduler, set_time_finished
 
 import os
@@ -279,7 +279,7 @@ class Bot(discord.Client):
             student_name=student_name,
             details=question,
             is_passoff=is_passoff,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             in_person=in_person
         )
 

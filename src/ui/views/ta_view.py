@@ -213,7 +213,7 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
         if days is None:
             message = "No incidents have been reported yet."
         else:
-            message = f"1 day{'s' if days == 1 else ''} since last incident. Description: {issue_text or 'No description provided'}\nContact {reported_by} for more information."
+            message = f"{days} day{'' if days == 1 else 's'} since last incident. Description: {issue_text or 'No description provided'}\nContact {reported_by} for more information."
 
         await interaction.response.send_message(message, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
 
