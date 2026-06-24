@@ -25,7 +25,6 @@ def _initialize_database() -> None:
                 student_name STRING,
                 total_help INTEGER DEFAULT 0,
                 daily_help INTEGER DEFAULT 0,
-                last_reset TEXT
             )
             """
         )
@@ -95,14 +94,14 @@ def increment_help(user_id: int, user_name: str, student_name: Optional[str] = N
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help, last_reset)
+        INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help)
         VALUES (?, ?, ?, 1, 1, ?)
         ON CONFLICT(user_id) DO UPDATE SET
             user_name = ?,
             total_help = total_help + 1,
             daily_help = daily_help + 1
         """,
-        (user_id, user_name, student_name or "", str(date.today()), user_name),
+        (user_id, user_name, student_name or "", user_name),
     )
 
     if student_name:
