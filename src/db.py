@@ -345,93 +345,14 @@ class ServerInfoDao:
 
         return row[0] if row else -1
     
-    def _verify_name(name: str):
+    def _verify_name(self, name: str):
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(server_ids)")
         column_names = [row["name"] for row in cursor.fetchall()]
         if name not in column_names:
             raise NameError
 
-
-    def get_category_id(guild_id: int) -> int:
-        cursor = conn.cursor()
-        cursor.execute("SELECT category_id FROM server_ids WHERE guild_id = ?", (guild_id,))
-        row = cursor.fetchone()
-
-        return row[0] if row else -1
-
-    def set_category_id(guild_id: int, category_id: int):
-        cursor = conn.cursor()
-        cursor.execute("""INSERT INTO server_ids (guild_id, category_id) 
-                    VALUES (?, ?)
-                    ON CONFLICT(guild_id) 
-                    DO UPDATE SET category_id = excluded.category_id""",
-                    (guild_id, category_id))
-        conn.commit()
-
-    def get_help_queue_id(guild_id: int) -> int:
-        cursor = conn.cursor()
-        cursor.execute("SELECT help_queue_id FROM server_ids WHERE guild_id = ?", (guild_id,))
-        row = cursor.fetchone()
-
-        return row[0] if row else -1
-
-    def set_help_queue_id(guild_id: int, help_queue_id: int):
-        cursor = conn.cursor()
-        cursor.execute("""INSERT INTO server_ids (guild_id, help_queue_id) 
-                    VALUES (?, ?)
-                    ON CONFLICT(guild_id) 
-                    DO UPDATE SET help_queue_id = excluded.help_queue_id""",
-                    (guild_id, help_queue_id))
-        conn.commit()
-
-    def get_bot_role_id(guild_id: int) -> int:
-        cursor = conn.cursor()
-        cursor.execute("SELECT bot_role_id FROM server_ids WHERE guild_id = ?", (guild_id,))
-        row = cursor.fetchone()
-
-        return row[0] if row else -1
-
-    def set_bot_role_id(guild_id: int, bot_role_id: int):
-        cursor = conn.cursor()
-        cursor.execute("""INSERT INTO server_ids (guild_id, bot_role_id) 
-                    VALUES (?, ?)
-                    ON CONFLICT(guild_id) 
-                    DO UPDATE SET bot_role_id = excluded.bot_role_id""",
-                    (guild_id, bot_role_id))
-        conn.commit()
-    
-    def set_ta_role_id(guild_id: int, ta_role_id: int):
-        cursor = conn.cursor()
-        cursor.execute("""INSERT INTO server_ids (guild_id, ta_role_id) 
-                    VALUES (?, ?)
-                    ON CONFLICT(guild_id) 
-                    DO UPDATE SET ta_role_id = excluded.ta_role_id""",
-                    (guild_id, ta_role_id))
-        conn.commit()
-        
-    def get_ta_role_id(guild_id: int) -> int:
-        cursor = conn.cursor()
-        cursor.execute("SELECT ta_role_id FROM server_ids WHERE guild_id = ?", (guild_id,))
-        row = cursor.fetchone()
-
-        return row[0] if row else -1
-    
-    def get_professor_role_id(guild_id: int) -> int:
-        cursor = conn.cursor()
-        cursor.execute("SELECT professor_role_id FROM server_ids WHERE guild_id = ?", (guild_id,))
-        row = cursor.fetchone()
-
-        return row[0] if row else -1
-    
-    def set_professor_role_id(guild_id: int, professor_role_id: int):
-        cursor = conn.cursor()
-        cursor.execute("""INSERT INTO server_ids (guild_id, professor_role_id) 
-                    VALUES (?, ?)
-                    ON CONFLICT(guild_id) 
-                    DO UPDATE SET professor_role_id = excluded.professor_role_id""",
-                    (guild_id, professor_role_id))
-        conn.commit()
+server_info_dao: ServerInfoDao = ServerInfoDao()
 
 #Reset daily help queue counts
 @tasks.loop(
