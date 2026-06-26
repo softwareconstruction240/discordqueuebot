@@ -73,11 +73,13 @@ def _initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS server_ids (
                 guild_id INTEGER PRIMARY KEY,
-                bot_role_id INTEGER,
                 category_id INTEGER,
                 help_queue_id INTEGER,
+                ta_bot_channel_id INTEGER,
+                bot_role_id INTEGER,
                 ta_role_id INTEGER,
                 professor_role_id INTEGER
+
             )
             """
         )
