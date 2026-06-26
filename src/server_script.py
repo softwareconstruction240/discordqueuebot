@@ -105,7 +105,7 @@ async def _help_queue_channel_init(interaction: discord.Interaction, category: d
     channels = category.channels
     help_queue_channel: discord.TextChannel = get(channels, id=help_queue_channel_id)
     if not help_queue_channel:
-        help_queue_channel = await category.create_text_channel("help-queue-chat")
+        help_queue_channel = await category.create_text_channel("help-queue-chat", position=0)
         server_info_dao.set_id("help_queue_id", interaction.guild.id, help_queue_channel.id)
 
     everyone_permissions = discord.PermissionOverwrite(send_messages=False, create_public_threads=False)
@@ -123,7 +123,7 @@ async def _ta_bot_channel_init(interaction: discord.Interaction, category: disco
     ta_bot_channel_id = server_info_dao.get_id("ta_bot_channel_id", interaction.guild.id)
     ta_bot_channel: discord.TextChannel = get(category.channels, id=ta_bot_channel_id)
     if not ta_bot_channel:
-        ta_bot_channel = await category.create_text_channel("ta_bot_channel")
+        ta_bot_channel = await category.create_text_channel("ta_bot_channel", position=1)
         server_info_dao.set_id("ta_bot_channel_id", interaction.guild.id, ta_bot_channel.id)
 
     everyone_permissions = discord.PermissionOverwrite(view_channel=False)
@@ -144,7 +144,7 @@ async def _online_tas_init(interaction: discord.Interaction, category: discord.C
     online_tas_id = server_info_dao.get_id("online_tas_id", interaction.guild.id)
     online_tas: discord.VoiceChannel = get(category.voice_channels, id=online_tas_id)
     if not online_tas:
-        online_tas = await category.create_voice_channel("Online TAs", user_limit=5)
+        online_tas = await category.create_voice_channel("Online TAs", position=2, user_limit=5)
         server_info_dao.set_id("online_tas_id", interaction.guild.id, online_tas.id)
     
     other_permissions = discord.PermissionOverwrite(connect=True)
@@ -166,5 +166,5 @@ async def _waiting_room_init(interaction: discord.Interaction, category: discord
     waiting_room_id = server_info_dao.get_id("waiting_room_id", interaction.guild.id)
     waiting_room: discord.VoiceChannel = get(category.voice_channels, id=waiting_room_id)
     if not waiting_room:
-        waiting_room = await category.create_voice_channel("Waiting Room")
+        waiting_room = await category.create_voice_channel("Waiting Room", position=3)
         server_info_dao.set_id("waiting_room_id", interaction.guild.id, waiting_room.id)

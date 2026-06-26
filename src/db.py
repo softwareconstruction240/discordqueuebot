@@ -342,13 +342,6 @@ class ServerInfoDao:
         row = cursor.fetchone()
 
         return row[0] if row else -1
-    
-    def _verify_name(self, name: str):
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(server_ids)")
-        column_names = [row["name"] for row in cursor.fetchall()]
-        if name not in column_names:
-            raise NameError
 
 server_info_dao: ServerInfoDao = ServerInfoDao()
 
