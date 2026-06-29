@@ -4,6 +4,7 @@ from db import server_info_dao
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import Categories, Channels, Roles
+from ui.helpers.discord_helpers import update_queue_messages
 
 async def setup_server(interaction: discord.Interaction):
     """Setup necessary channels, roles, and permissions needed for the bot to function properly.  
@@ -20,6 +21,7 @@ async def setup_server(interaction: discord.Interaction):
     await _online_tas_init(interaction, category)
     await _public_vcs_init(interaction, category)
     await _in_person_init(interaction, category)
+    await update_queue_messages(interaction.client, interaction.guild)
 
 async def takedown(interaction: discord.Interaction):
     """Only used for testing. Deletes all roles and channels, except for the 'general' text channel."""
@@ -161,7 +163,8 @@ async def _online_tas_init(interaction: discord.Interaction, category: discord.C
 
 
 async def _public_vcs_init(interaction: discord.Interaction, category: discord.CategoryChannel):
-    public_vc_names = [Channels.WAITING_ROOM_NAME].extend(Channels.BREAKOUT_NAMES)
+    public_vc_names = [Channels.WAITING_ROOM_NAME]
+    public_vc_names.extend(Channels.BREAKOUT_NAMES)
     for name in public_vc_names:
         channel_id = server_info_dao.get_id(name, interaction.guild.id)
         voice_channel: discord.VoiceChannel = get(category.voice_channels, id=channel_id)
