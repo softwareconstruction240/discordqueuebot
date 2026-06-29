@@ -1,6 +1,8 @@
 import discord
 from discord.utils import get
 from db import server_info_dao
+from ui.views.queue_view import QueueView
+from ui.views.ta_view import TAView
 
 async def setup_server(interaction: discord.Interaction):
     """Setup necessary channels, roles, and permissions needed for the bot to function properly.  
@@ -15,7 +17,8 @@ async def setup_server(interaction: discord.Interaction):
     await _help_queue_channel_init(interaction, category)
     await _ta_bot_channel_init(interaction, category)
     await _online_tas_init(interaction, category)
-    await _waiting_room_init(interaction, category)
+    await _public_vcs_init(interaction, category)
+    await _in_person_init(interaction, category)
 
 async def takedown(interaction: discord.Interaction):
     """Only used for testing. Deletes all roles and channels, except for the 'general' text channel."""
@@ -34,10 +37,6 @@ async def takedown(interaction: discord.Interaction):
         await category.delete()
 
     
-    
-
-    
-
 def _verify_permissions(interaction: discord.Interaction):
     current_permissions: discord.Permissions = interaction.app_permissions
     expected_permissions = [
@@ -107,6 +106,7 @@ async def _help_queue_channel_init(interaction: discord.Interaction, category: d
     if not help_queue_channel:
         help_queue_channel = await category.create_text_channel("help-queue-chat", position=0)
         server_info_dao.set_id("help_queue_id", interaction.guild.id, help_queue_channel.id)
+        await help_queue_channel.send(view=QueueView())
 
     everyone_permissions = discord.PermissionOverwrite(send_messages=False, create_public_threads=False)
 
@@ -119,12 +119,14 @@ async def _help_queue_channel_init(interaction: discord.Interaction, category: d
         else:
             await help_queue_channel.set_permissions(role, overwrite=other_permissions)
 
+
 async def _ta_bot_channel_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     ta_bot_channel_id = server_info_dao.get_id("ta_bot_channel_id", interaction.guild.id)
     ta_bot_channel: discord.TextChannel = get(category.channels, id=ta_bot_channel_id)
     if not ta_bot_channel:
         ta_bot_channel = await category.create_text_channel("ta_bot_channel", position=1)
         server_info_dao.set_id("ta_bot_channel_id", interaction.guild.id, ta_bot_channel.id)
+        await ta_bot_channel.send(view=TAView())
 
     everyone_permissions = discord.PermissionOverwrite(view_channel=False)
     other_permissions = discord.PermissionOverwrite(view_channel=True)
@@ -139,6 +141,7 @@ async def _ta_bot_channel_init(interaction: discord.Interaction, category: disco
     
     # must be done last so that the bot can still see the channel
     await ta_bot_channel.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
+
 
 async def _online_tas_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     online_tas_id = server_info_dao.get_id("online_tas_id", interaction.guild.id)
@@ -162,9 +165,32 @@ async def _online_tas_init(interaction: discord.Interaction, category: discord.C
     await online_tas.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
 
 
-async def _waiting_room_init(interaction: discord.Interaction, category: discord.CategoryChannel):
-    waiting_room_id = server_info_dao.get_id("waiting_room_id", interaction.guild.id)
-    waiting_room: discord.VoiceChannel = get(category.voice_channels, id=waiting_room_id)
-    if not waiting_room:
-        waiting_room = await category.create_voice_channel("Waiting Room", position=3)
-        server_info_dao.set_id("waiting_room_id", interaction.guild.id, waiting_room.id)
+async def _public_vcs_init(interaction: discord.Interaction, category: discord.CategoryChannel):
+    public_vc_names = ("Waiting Room", "Breakout Room A", "Breakout Room B", "Breakout Room C")
+    for name in ("Waiting Room", "Breakout Room A", "Breakout Room B", "Breakout Room C"):
+        channel_id = server_info_dao.get_id(name+"_id", interaction.guild.id)
+        voice_channel: discord.VoiceChannel = get(category.voice_channels, id=channel_id)
+        if not voice_channel:
+            voice_channel = await category.create_voice_channel(name, position=3+public_vc_names.index(name))
+            server_info_dao.set_id(name+"_id", interaction.guild.id, voice_channel.id)
+
+async def _in_person_init(interaction: discord.Interaction, category: discord.CategoryChannel):
+    in_person_vc_id = server_info_dao.get_id("in_person_with_student_id", interaction.guild.id)
+    in_person_vc: discord.VoiceChannel = get(category.voice_channels, id=in_person_vc_id)
+    if not in_person_vc:
+        in_person_vc = await category.create_voice_channel("In Person with Student", position=7)
+        server_info_dao.set_id("in_person_with_student_id", interaction.guild.id, in_person_vc.id)
+    
+    other_permissions = discord.PermissionOverwrite(connect=True)
+    
+    for role in interaction.guild.roles:
+        if role == interaction.guild.default_role:
+            continue
+        elif role in interaction.guild.me.roles:
+            await in_person_vc.set_permissions(interaction.guild.me, overwrite=other_permissions)
+        else:
+            await in_person_vc.set_permissions(role, overwrite=other_permissions)
+
+    # must be done last so that the bot can still see the channel
+    everyone_permissions = discord.PermissionOverwrite(connect=False)
+    await in_person_vc.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
