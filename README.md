@@ -5,7 +5,6 @@ A help queue bot for the CS 240 Discord server.
 
 - Python 3.11+
 - `ffmpeg` installed and available on your PATH
-- A Discord application with bot token
 
 ## Python / VS Code setup
 
@@ -30,7 +29,7 @@ python -m venv .venv
 
 #### 4. Upgrade pip and install dependencies:
 
-Run the following commands in the VSCode terminal:
+Run the following commands in the VSCode terminal in the root of the project:
 
 ```powershell
 python -m pip install --upgrade pip
@@ -45,34 +44,6 @@ Run the following command in the VSCode terminal:
 ffmpeg -version
 ```
 
-## Discord server setup
-
-#### Required channels and role names
-
-The bot expects the following channel and role names by default. Names are case-sensitive and must match exactly.. If you use different names, update `ui/helpers/constants.py`.
-
-- Text channels:
-  - `help-queue-chat`
-  - `ta-bot-chat`
-- Voice channels:
-  - `Online TAs`
-  - `In Person with Student`
-  - `Waiting Room`
-  - `Breakout Room A`
-  - `Breakout Room B`
-  - `Breakout Room C`
-- Roles:
-  - `TA`
-  - `Bot` (so you can give it channel-specific permissions manually)
-
-Suggested permissions: 
-  - Restrict channel management server-wide for @everyone. Keep it enabled for @TA.
-  - Allow Bot to Move Members between Voice Channels server-wide.
-  - help-queue-chat: @everyone restrict messages/threads, etc. Keep reactions enabled. @TA and @Bot all permissions.
-  - ta-bot-chat: @everyone cannot see the channel. @TA and @Bot all permissions.
-  - Online TAs: @everyone cannot join the channel. @TA and @Bot all permissions.
-  - Waiting Room/Breakout Rooms: @everyone all permissions
-  - In Person with Student: @everyone cannot join the channel, but they can see it. @TA and @Bot all permissions.
 
 ## Bot Setup
 
@@ -80,9 +51,9 @@ Suggested permissions:
 
 #### 2. Create a new application and add a Bot user.
 
-#### 3. Under the Bot section, enable the "Message Content Intent" because the bot uses `message_content=True`.
+#### 3. Under the Bot section, enable the "Message Content Intent".
 
-#### 4. Save the bot token
+#### 4. Save the bot token by clicking the `Reset Token` button
 
 Create a file named `.env` in the `src/resources` directory with the following contents:
 
@@ -90,48 +61,49 @@ Create a file named `.env` in the `src/resources` directory with the following c
 TOKEN=your-token-here
 ```
 
-#### 5. Under OAuth2 > URL Generator, enable scopes:
+#### 5. In OAuth2 > URL Generator, enable scopes:
    - `bot`
    - `applications.commands`
 
-#### 6. Under Bot Permissions, grant the following permissions:
-   - View Channels
-   - Send Messages
-   - Read Message History
-   - Manage Messages
-   - Connect
-   - Speak
-   - Use Voice Activity
-   - Use Slash Commands
+#### 6. In Installation:
+ - In Installation Contexts, deselect `User Install`
+ - In Install Link, Select `Discord Provided Link`
+ - In Default Install Settings, for `Scopes` enable `applications.commands` and `bot`, and for `Permissions` select `Manage Channels`, `Manage Messages`, `Manage Roles`, and `Move Members`
 
-#### 7. Generate the invite URL, open it in your browser, and invite the bot to your server.
 
+#### 7. Open the Discord Provided link in your browser, and add the bot to your server.
 
 
 ## Running the bot
 
 #### 1. Ensure your `.env` file contains the bot token.
-#### 2. If you want voice alerts, place one or more `.mp3` files in the `resources/` folder.
-#### 3. Start the bot from the src directory in the virtual environment:
+#### 2. If you want voice alerts, ensure there are one or more `.mp3` files in the `resources/` folder.
+#### 3. Start the bot from the src directory (using the virtual environment, if you set one up):
 
 ```powershell
 cd src
 python bot.py
 ```
 
-#### 4. Use the application commands
+#### 4. Discord server setup
+   Run the `/setup` command in any discord server channel. Assign roles to relevant server members
+>[!NOTE] The Professor/TA Roles don't have administrator permissions by default, as the bot cannot grant permissisions higher than its own level of access, so you might want to manually go in and mark the Professor Role as Administrator.
 
-   - Use the command for the students' help queue buttons in help-queue-chat
-   - Use the command for the TAs' help queue buttons in ta-bot-chat
+`/setup` should be the only slash command you ever need use, but the following slash commands are also provided in case the buttons are deleted:
+   - `/queue`: students' help queue buttons in help-queue-chat
+   - `/ta`: TAs' help queue buttons in ta-bot-chat
 
 > [!Note]
 > If the commands don't show up, try restarting your discord client. Sometimes it takes a minute or two to sync the commands.
 
+## Conclusion
+The bot is now ready to use! When you are available, be sure to join the "Online TAs" voice channel. Use the buttons to deal with helping students, and check the analytics out and analyze them in an excel spreadsheet!
+
 ## Notes
 
-- If the bot cannot find the `resources/` folder or no MP3 files are present, or you don't have fmpegg installed, it will still run but will not play audio.
+- If no MP3 files are present or you don't have fmpegg installed, it will still run but will not play audio.
 - You can customize channel names and messages in `ui/helpers/constants.py`.
-- To run tests, navigate to the project directory and run the following in the terminal: 
+- To run tests, navigate to the root directory and run the following in the terminal: 
 ```powershell
 python -m unittest discover -s tests
 ```

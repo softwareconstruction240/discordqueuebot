@@ -4,11 +4,12 @@ from discord.utils import get
 from help_queue import HelpQueue
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
-from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOICE_CHANNEL_NAME
+from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
+from server_script import setup_server, takedown
 from records import QueueEntry
 from datetime import datetime, UTC
-from db import daily_reset, auto_queue_scheduler, set_time_finished
+from db import daily_reset, auto_queue_scheduler, set_time_finished, server_info_dao
 
 import os
 import random
@@ -49,19 +50,20 @@ class Bot(discord.Client):
         await self.tree.sync()
 
     async def on_ready(self):
-        await update_queue_messages(self)
+        for guild in self.guilds:
+            await update_queue_messages(self, guild)
         # ensure player task isn't left running accidentally
         if self._player_task is None and getattr(self.queue, 'entries', None):
             # start player only if queue not empty
             if len(self.queue.entries) > 0:
                 self._player_task = asyncio.create_task(self._play_notifications())
 
-    async def _get_ta_voice_channel(self) -> discord.VoiceChannel | None:
-        for guild in self.guilds:
-            return get(guild.voice_channels, name=TA_VOICE_CHANNEL_NAME)
+    async def _get_ta_voice_channel(self, guild: discord.Guild) -> discord.VoiceChannel | None:
+        channel_id = server_info_dao.get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
+        return get(guild.voice_channels, id=channel_id)
             
 
-    async def _play_notifications(self) -> None:
+    async def _play_notifications(self, guild: discord.Guild) -> None:
         """Join TA voice channel and play random mp3 from resources once per minute until queue empty."""
         try:
             resources_dir = os.path.join(os.path.dirname(__file__), "resources")
@@ -74,7 +76,7 @@ class Bot(discord.Client):
             if empty:
                 break
 
-            channel = await self._get_ta_voice_channel()
+            channel = await self._get_ta_voice_channel(guild)
             if channel is None:
                 await asyncio.sleep(60)
                 continue
@@ -119,23 +121,19 @@ class Bot(discord.Client):
 
         self._player_task = None
 
-    async def _get_ta_channel(self) -> discord.TextChannel | None:
-        for guild in self.guilds:
-            return get(guild.text_channels, name=TA_TEXT_CHANNEL_NAME)
-        return None
-
-    async def _get_help_channel(self) -> discord.TextChannel | None:
-        for guild in self.guilds:
-            return get(guild.text_channels, name=HELP_CHANNEL_NAME)
-        return None
+    async def _get_ta_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
+        channel_id = server_info_dao.get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
+        return get(guild.text_channels, id=channel_id)
+        
+    async def _get_help_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
+        channel_id = server_info_dao.get_id(Channels.HELP_CHANNEL_NAME, guild.id)
+        return get(guild.text_channels, id=channel_id)
     
-    async def _get_wait_time(self):
+    async def _get_wait_time(self, guild: discord.Guild):
         if not self.queue.is_open:
             return ""
 
         # compute expected wait time using recent queue history, available tas, and queue size
-        ta_voice_channel = await self._get_ta_voice_channel()
-        guild = ta_voice_channel.guild if ta_voice_channel else next(iter(self.guilds), None)
         num_tas = count_total_tas_in_voice(guild=guild)
 
         from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
@@ -152,23 +150,23 @@ class Bot(discord.Client):
         except NoTasOnlineError:
             return " — No TAs Online"
     
-    async def _build_student_status_message(self) -> str:
+    async def _build_student_status_message(self, guild: discord.Guild) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         async with self.queue.lock:
             count = len(self.queue.entries)
-        wait_text = await self._get_wait_time()
+        wait_text = await self._get_wait_time(guild)
         return f"**Help Queue Status: {status} — {count} student{'s' if count != 1 else ''} in queue{wait_text}**"
 
 
-    async def _build_ta_status_message(self) -> str:
+    async def _build_ta_status_message(self, guild: discord.Guild) -> str:
         status = "OPEN" if self.queue.is_open else "CLOSED"
         queue_text = await self.queue.view()
-        wait_text = await self._get_wait_time()
+        wait_text = await self._get_wait_time(guild)
 
         return f"**Help Queue Status: {status}{wait_text}**\n{queue_text}"
 
-    async def _get_ta_status_message(self) -> discord.Message | None:
-        ta_channel = await self._get_ta_channel()
+    async def _get_ta_status_message(self, guild: discord.Guild) -> discord.Message | None:
+        ta_channel = await self._get_ta_channel(guild)
         if ta_channel is None:
             return None
 
@@ -183,12 +181,12 @@ class Bot(discord.Client):
                 self.queue_status_message_id = message.id
                 return message
 
-        status_message = await ta_channel.send(await self._build_ta_status_message())
+        status_message = await ta_channel.send(await self._build_ta_status_message(guild))
         self.queue_status_message_id = status_message.id
         return status_message
 
-    async def _get_student_status_message(self) -> discord.Message | None:
-        help_channel = await self._get_help_channel()
+    async def _get_student_status_message(self, guild: discord.Guild) -> discord.Message | None:
+        help_channel = await self._get_help_channel(guild)
         if help_channel is None:
             return None
 
@@ -203,29 +201,30 @@ class Bot(discord.Client):
                 self.help_queue_count_message_id = message.id
                 return message
 
-        count_message = await help_channel.send(await self._build_student_status_message())
+        count_message = await help_channel.send(await self._build_student_status_message(guild))
         self.help_queue_count_message_id = count_message.id
         return count_message
 
-    async def update_ta_status_message(self) -> None:
-        ta_status_message = await self._get_ta_status_message()
+    async def update_ta_status_message(self, guild: discord.Guild) -> None:
+        ta_status_message = await self._get_ta_status_message(guild)
         if ta_status_message is None:
             return
 
-        await ta_status_message.edit(content=await self._build_ta_status_message())
+        await ta_status_message.edit(content=await self._build_ta_status_message(guild))
 
-    async def update_student_status_message(self) -> None:
-        student_status_message = await self._get_student_status_message()
+    async def update_student_status_message(self, guild: discord.Guild) -> None:
+        student_status_message = await self._get_student_status_message(guild)
         if student_status_message is None:
             return
 
-        await student_status_message.edit(content=await self._build_student_status_message())
+        await student_status_message.edit(content=await self._build_student_status_message(guild))
 
     async def _refresh_queue_status_messages(self) -> None:
         while not self.is_closed():
             try:
                 await asyncio.sleep(60)
-                await update_queue_messages(self)
+                for guild in self.guilds:
+                    await update_queue_messages(self, guild)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -284,12 +283,12 @@ class Bot(discord.Client):
         )
 
         await self.queue.add(entry)
-        await update_queue_messages(self)
+        await update_queue_messages(self, interaction.guild)
         # start playing notifications while queue has entries
         async with self.queue.lock:
             had = len(self.queue.entries) > 0
         if had and (self._player_task is None or self._player_task.done()):
-            self._player_task = asyncio.create_task(self._play_notifications())
+            self._player_task = asyncio.create_task(self._play_notifications(interaction.guild))
 
 
 bot = Bot()
@@ -305,6 +304,30 @@ async def ta_panel(interaction: discord.Interaction):
     await interaction.response.send_message(
         view=TAView()
     )
+
+@bot.tree.command(name="setup")
+async def setup(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        await setup_server(interaction)
+    except PermissionError as e:
+        await interaction.followup.send("Missing required permissions! See logs!")
+        raise e
+    except Exception as e:
+        await interaction.followup.send("Some kind of unknown error occured!")
+        raise e
+    await interaction.followup.send("Setup complete! Bot is ready to go!")
+
+# @bot.tree.command(name="reset")
+# async def reset(interaction: discord.Interaction):
+#     await interaction.response.defer(thinking=True, ephemeral=True)
+#     await takedown(interaction)
+#     try: 
+#         await interaction.followup.send("Reset Complete!")
+#     except discord.NotFound as e:
+#         print(e.with_traceback(None))
+
+    
 
 token: str = os.getenv("TOKEN")
 bot.run(token)

@@ -1,12 +1,13 @@
 from typing import Optional
 
 import discord
-from db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv
+from discord.utils import get
+from db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv, server_info_dao
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
-from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME
+from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.utils import fixed_width
-from ui.helpers.discord_helpers import get_channel, get_role, move_to_breakout, notify_next_if_changed, update_queue_messages
+from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
 
 
 
@@ -100,7 +101,7 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
     if (interaction.user.name in interaction.client.help_map.keys()):
         await interaction.response.send_message(
             "You are currently helping a student! Use \"Finish Helping Student\" to be able to help more students!", 
-            ephemeral=True, delete_after=SHORT_TIMEOUT
+            ephemeral=True, delete_after=Messages.SHORT_TIMEOUT
         )
         return
 
@@ -109,7 +110,7 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
     entry: Optional[QueueEntry] = await interaction.client.queue.next(passoff_only=passoff_only, online_only=online_only)
 
     if not entry:
-        return await interaction.response.send_message(error_msg, ephemeral=True, delete_after=SHORT_TIMEOUT)
+        return await interaction.response.send_message(error_msg, ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
     
     if not entry.is_passoff:
         increment_help(entry.user_id, entry.username, entry.student_name)
@@ -124,32 +125,34 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
 
     if not interaction.response.is_done():
         await interaction.response.send_message(
-            NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
-            delete_after=DEFAULT_TIMEOUT
+            Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
+            delete_after=Messages.DEFAULT_TIMEOUT
         )
 
     # Notify the next student in line only if they changed
     await notify_next_if_changed(interaction.client, front_before)
-    await update_queue_messages(interaction.client)
+    await update_queue_messages(interaction.client, interaction.guild)
 
 
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
-        online_ta_vc: discord.VoiceChannel = get_channel(interaction, TA_VOICE_CHANNEL_NAME)
+        channel_id = server_info_dao.get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
+        online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=channel_id)
         
         try:
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
             voice_channel: discord.VoiceChannel = ta_voice_state.channel
-        except Exception:
-            await interaction.response.send_message("You must be in a voice channel to use this command.", ephemeral=True, delete_after=SHORT_TIMEOUT)
+        except discord.NotFound:
+            await interaction.response.send_message("You must be in a voice channel to use this command.", ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
             return
         
         if voice_channel == online_ta_vc:
-            await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=SHORT_TIMEOUT)
+            await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
             return
 
-        ta_role: discord.Role = get_role(interaction, "TA")
+        ta_role_id: int = server_info_dao.get_id(Roles.TA_ROLE, interaction.guild.id)
+        ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
         for member in voice_channel.members:
             if ta_role in member.roles:
                 continue
@@ -161,7 +164,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         try: 
             set_time_finished(interaction.client.help_map.pop(ta_name)[0])
         except (KeyError, TypeError):
-            await interaction.response.send_message("Error: Could not find the student you were helping.", ephemeral=True, delete_after=SHORT_TIMEOUT)
+            await interaction.response.send_message("Error: Could not find the student you were helping.", ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
             return
         await interaction.response.defer()
 
@@ -171,21 +174,21 @@ class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     async def open(self, interaction: discord.Interaction, button: discord.Button):
         if not interaction.client.queue.is_open:
             interaction.client.queue.is_open = True
-            await interaction.response.send_message(QUEUE_OPENED, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
-            await update_queue_messages(interaction.client)
+            await interaction.response.send_message(Messages.QUEUE_OPENED, ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT)
+            await update_queue_messages(interaction.client, interaction.guild)
             return
         else:
-            await interaction.response.send_message(QUEUE_ALREADY_OPEN, ephemeral=True, delete_after=SHORT_TIMEOUT)
+            await interaction.response.send_message(Messages.QUEUE_ALREADY_OPEN, ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
 
     @discord.ui.button(label="Close Queue", style=discord.ButtonStyle.red, custom_id="close_queue", emoji="🔏")
     async def close(self, interaction: discord.Interaction, button):
         if interaction.client.queue.is_open:
             interaction.client.queue.is_open = False
-            await interaction.response.send_message(QUEUE_CLOSED, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
-            await update_queue_messages(interaction.client)
+            await interaction.response.send_message(Messages.QUEUE_CLOSED, ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT)
+            await update_queue_messages(interaction.client, interaction.guild)
             return
         else:
-            await interaction.response.send_message(QUEUE_ALREADY_CLOSED, ephemeral=True, delete_after=SHORT_TIMEOUT)
+            await interaction.response.send_message(Messages.QUEUE_ALREADY_CLOSED, ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
 
     @discord.ui.button(label="Clear Queue", style=discord.ButtonStyle.danger, custom_id="clear_queue", emoji="💥")
     async def clear_queue(self, interaction: discord.Interaction, button):
@@ -215,19 +218,19 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
         else:
             message = f"{days} day{'' if days == 1 else 's'} since last incident. Description: {issue_text or 'No description provided'}\nContact {reported_by} for more information."
 
-        await interaction.response.send_message(message, ephemeral=True, delete_after=DEFAULT_TIMEOUT)
+        await interaction.response.send_message(message, ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT)
 
     @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
     async def student_info(self, interaction: discord.Interaction, button):
         headers, rows = get_student_info()
-        width = STUDENT_INFO_WIDTH
+        width = Messages.STUDENT_INFO_WIDTH
         def row_to_line(items):
             return "| ".join(fixed_width(str(x), width) for x in items)
 
         divider = "-" * (width * len(headers) + 3 * (len(headers)-1))
         body = "\n".join(row_to_line(r) for r in rows)
         builder = f"```Student Info:\n{row_to_line(headers)}\n{divider}\n{body}```"
-        await interaction.response.send_message(builder, ephemeral=True, delete_after=LONG_TIMEOUT)
+        await interaction.response.send_message(builder, ephemeral=True, delete_after=Messages.LONG_TIMEOUT)
 
     @discord.ui.button(label="Edit Hours", style=discord.ButtonStyle.secondary, custom_id="edit_hours", emoji="🕐")
     async def edit_queue_hours(self, interaction: discord.Interaction, button: discord.ui.Button):

@@ -8,8 +8,8 @@ from zoneinfo import ZoneInfo
 from discord.ext import tasks
 from discord.utils import get
 from records import QueueEntry
+from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages
-from ui.helpers.constants import TA_TEXT_CHANNEL_NAME
 
 conn: sqlite3.Connection = sqlite3.connect("./resources/queue.db", detect_types=sqlite3.PARSE_DECLTYPES)
 conn.row_factory = sqlite3.Row
@@ -66,6 +66,19 @@ def _initialize_database() -> None:
                 in_person INTEGER CHECK (in_person IN (0,1)),
                 time_finished TEXT
                 )
+            """
+        )
+
+        
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS server_ids (
+                guild_id INTEGER,
+                resource_name TEXT,
+                resource_id,
+                PRIMARY KEY(guild_id, resource_name)
+            )
             """
         )
 
@@ -257,16 +270,6 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
     conn.commit()
 
     return generated_id
-
-def _get_dequeue_time(id: int) -> datetime:
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT dequeue_time FROM queue_history WHERE id = ?
-        """, (id,)
-    )
-    row = cursor.fetchone()
-    return datetime.fromisoformat(row[0]).astimezone(ZoneInfo("America/Denver"))
     
 
 def set_time_finished(id: int):
@@ -336,7 +339,26 @@ def get_queue_history() -> list:
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM queue_history")
     return [row for row in cursor.fetchall()]
-    
+
+class ServerInfoDao:
+
+    def set_id(self, name: str, guild_id: int, id: int) -> None:
+        cursor = conn.cursor()
+        cursor.execute("""INSERT INTO server_ids (guild_id, resource_name, resource_id)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(guild_id, resource_name) 
+                    DO UPDATE SET resource_id = excluded.resource_id""",
+                    (guild_id, name, id))
+        conn.commit()
+
+    def get_id(self, name: str, guild_id: int) -> int:
+        cursor = conn.cursor()
+        cursor.execute("SELECT resource_id FROM server_ids WHERE (guild_id, resource_name) = (?, ?)", (guild_id,name))
+        row = cursor.fetchone()
+
+        return row[0] if row else -1
+
+server_info_dao: ServerInfoDao = ServerInfoDao()
 
 #Reset daily help queue counts
 @tasks.loop(
@@ -371,27 +393,32 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     # Get TA text channel
     ta_channel = None
     for guild in bot_client.guilds:
-        ta_channel = get(guild.text_channels, name=TA_TEXT_CHANNEL_NAME)
-        if ta_channel:
-            break
-    
-    # Check if we should open (at the configured open time)
-    if current_time.hour == open_hour and current_time.minute == open_minute and not bot_client.queue.is_open:
-        bot_client.queue.is_open = True
-        message = f"Queue auto-opened at {current_time.strftime('%H:%M')}"
+        channel_id: int = server_info_dao.get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
+        ta_channel = get(guild.text_channels, id=channel_id)
+        message: str | None = None
+        # Check if we should open (at the configured open time)
+        if current_time.hour == open_hour and current_time.minute == open_minute and not bot_client.queue.is_open:
+            bot_client.queue.is_open = True
+            message = f"Queue auto-opened at {current_time.strftime('%H:%M')}"
+            
+        # Check if we should close (at the configured close time)
+        elif current_time.hour == close_hour and current_time.minute == close_minute and bot_client.queue.is_open:
+            bot_client.queue.is_open = False
+            message = f"Queue auto-closed at {current_time.strftime('%H:%M')}"
+
+        if not message:
+            return
+        
         if ta_channel:
             await ta_channel.send(message, delete_after=30)
         else:
             print(message)
-        await update_queue_messages(bot_client)
+            
+        await update_queue_messages(bot_client, guild)
+
+        
+    
+    
 
     
-    # Check if we should close (at the configured close time)
-    elif current_time.hour == close_hour and current_time.minute == close_minute and bot_client.queue.is_open:
-        bot_client.queue.is_open = False
-        message = f"Queue auto-closed at {current_time.strftime('%H:%M')}"
-        if ta_channel:
-            await ta_channel.send(message, delete_after=30)
-        else:
-            print(message)
-        await update_queue_messages(bot_client)
+    
