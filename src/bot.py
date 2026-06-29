@@ -318,14 +318,14 @@ async def setup(interaction: discord.Interaction):
         raise e
     await interaction.followup.send("Setup complete! Bot is ready to go!")
 
-@bot.tree.command(name="reset")
-async def reset(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True, ephemeral=True)
-    await takedown(interaction)
-    try: 
-        await interaction.followup.send("Reset Complete!")
-    except Exception as e:
-        print(e.with_traceback(None))
+# @bot.tree.command(name="reset")
+# async def reset(interaction: discord.Interaction):
+#     await interaction.response.defer(thinking=True, ephemeral=True)
+#     await takedown(interaction)
+#     try: 
+#         await interaction.followup.send("Reset Complete!")
+#     except discord.NotFound as e:
+#         print(e.with_traceback(None))
 
     
 
