@@ -270,16 +270,6 @@ def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -
     conn.commit()
 
     return generated_id
-
-def _get_dequeue_time(id: int) -> datetime:
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT dequeue_time FROM queue_history WHERE id = ?
-        """, (id,)
-    )
-    row = cursor.fetchone()
-    return datetime.fromisoformat(row[0]).astimezone(ZoneInfo("America/Denver"))
     
 
 def set_time_finished(id: int):
