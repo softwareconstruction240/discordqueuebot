@@ -53,7 +53,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             student_name
         )
 
-        times_helped = get_times_helped_today(interaction.user.id)
+        times_helped = await get_times_helped_today(interaction.user.id)
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
@@ -129,7 +129,7 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message("The TAs have been notified. They will reach out to you if needed.", ephemeral=True, delete_after=30)
         issue_text = self.description.value.strip()
-        record_bot_issue(interaction.user.mention, issue_text)
+        await record_bot_issue(interaction.user.mention, issue_text)
         ta_role = discord.utils.get(interaction.guild.roles, name="TA")
         ta_mention = ta_role.mention
         for channel in interaction.guild.channels:
@@ -236,7 +236,7 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
                 )
                 return
             
-            set_queue_times(open_h, open_m, close_h, close_m)
+            await set_queue_times(open_h, open_m, close_h, close_m)
             ta_role = get_role(interaction, "TA")
             await interaction.response.send_message(
                 f"{ta_role.mention} ANNOUNCEMENT: Queue hours updated: Opens at {open_h:02d}:{open_m:02d}, closes at {close_h:02d}:{close_m:02d}",

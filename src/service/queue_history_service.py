@@ -33,7 +33,7 @@ def calculate_expected_wait_time(
     if available_tas is not None and available_tas >= position:
         return 20 * position
 
-    queue_history: list = get_queue_history()
+    queue_history: list = await get_queue_history()
     recent = list(queue_history)[::-1]
     samples = min(20, len(recent))
     if samples == 0:

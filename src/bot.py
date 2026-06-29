@@ -253,7 +253,7 @@ class Bot(discord.Client):
                 # remove them from the help_map and update the db table
                 for ta in tas_to_remove:
                     tableid, _ = self.help_map.pop(ta)
-                    set_time_finished(tableid)
+                    await set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
             except Exception as e:

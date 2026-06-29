@@ -15,7 +15,7 @@ conn: sqlite3.Connection = sqlite3.connect("./resources/queue.db", detect_types=
 conn.row_factory = sqlite3.Row
 
 
-def _initialize_database() -> None:
+async def _initialize_database() -> None:
     with conn:
         conn.execute(
             """
@@ -79,9 +79,7 @@ def _initialize_database() -> None:
 
 _initialize_database()
 
-
-
-def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None) -> None:
+async def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None) -> None:
     """
     Records a help session for a user, incrementing both their total and daily help counts.
     Creates a new user record if one does not exist.
@@ -105,12 +103,12 @@ def increment_help(user_id: int, user_name: str, student_name: Optional[str] = N
     )
 
     if student_name:
-        _update_student_name(user_id, student_name)
+        await _update_student_name(user_id, student_name)
 
     conn.commit()
 
 
-def _update_student_name(user_id: int, student_name: str) -> None:
+async def _update_student_name(user_id: int, student_name: str) -> None:
     """
     Updates the student's name in the database if the new name provided is longer 
     than the currently stored name.
@@ -131,7 +129,7 @@ def _update_student_name(user_id: int, student_name: str) -> None:
         )
         conn.commit()
 
-def record_bot_issue(username: str, issue: str) -> None:
+async def record_bot_issue(username: str, issue: str) -> None:
     cursor = conn.cursor()
     timestamp = datetime.now(UTC)
     cursor.execute(
@@ -141,7 +139,7 @@ def record_bot_issue(username: str, issue: str) -> None:
     conn.commit()
 
 
-def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str]]:
+async def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str]]:
     """Get information for most recent bot issue. 
     Returns:
         A tuple of 3 elements containing the user who reported the issue, the number of days since the issue, and the issue description, in that order."""
@@ -161,7 +159,7 @@ def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str
     return row["reported_by"] or None, delta.days, row["incident"] or None
 
 
-def get_student_info() -> tuple[List[str], List[tuple[str, int, int]]]:
+async def get_student_info() -> tuple[List[str], List[tuple[str, int, int]]]:
     """Get information about students that have joined the help queue.
 
     Returns:
@@ -186,14 +184,14 @@ def get_student_info() -> tuple[List[str], List[tuple[str, int, int]]]:
 
     return result
 
-def get_times_helped_today(user_id: int) -> int:
+async def get_times_helped_today(user_id: int) -> int:
     cursor = conn.cursor()
     cursor.execute("SELECT daily_help FROM user_stats WHERE user_id=?", (user_id,))
     row = cursor.fetchone()
     return int(row[0]) if row else 0
 
 
-def get_queue_times() -> tuple[int, int, int, int]:
+async def _get_queue_times() -> tuple[int, int, int, int]:
     """Get the configured queue open and close times.
     
     Returns:
@@ -207,7 +205,7 @@ def get_queue_times() -> tuple[int, int, int, int]:
     return 8, 0, 20, 0  # Default to 8:00am-8:00pm
 
 
-def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_minute: int) -> None:
+async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_minute: int) -> None:
     """Set the queue open and close times.
     
     Args:
@@ -225,7 +223,7 @@ def set_queue_times(open_hour: int, open_minute: int, close_hour: int, close_min
     )
     conn.commit()
 
-def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -> int:
+async def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -> int:
     """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
     
     Returns: 
@@ -269,7 +267,7 @@ def _get_dequeue_time(id: int) -> datetime:
     return datetime.fromisoformat(row[0]).astimezone(ZoneInfo("America/Denver"))
     
 
-def set_time_finished(id: int):
+async def set_time_finished(id: int):
     now = datetime.now(UTC)
     cursor = conn.cursor()
     cursor.execute(
@@ -279,7 +277,7 @@ def set_time_finished(id: int):
     )
     conn.commit()
 
-def get_queue_history_as_csv() -> discord.File:
+async def get_queue_history_as_csv() -> discord.File:
     # build header from column names
     cursor = conn.cursor()
     cursor.execute("""PRAGMA table_info(queue_history)""")
@@ -297,12 +295,12 @@ def get_queue_history_as_csv() -> discord.File:
         items.append(row["TA_name"])
         items.append(row["question"])
 
-        items.append(to_denver_time(row["enqueue_time"]))
-        items.append(to_denver_time(row["dequeue_time"]))
+        items.append(_to_denver_time(row["enqueue_time"]))
+        items.append(_to_denver_time(row["dequeue_time"]))
 
         items.append(row["is_passoff"])
         items.append(row["in_person"])
-        items.append(to_denver_time(row["time_finished"]))
+        items.append(_to_denver_time(row["time_finished"]))
         
         # calculate time in queue
         enqueue_time = datetime.fromisoformat(row["enqueue_time"])
@@ -324,7 +322,7 @@ def get_queue_history_as_csv() -> discord.File:
     file = discord.File(io.BytesIO(buffer.getvalue().encode("utf-8")), filename="queue_history.csv")
     return file
 
-def to_denver_time(time: str) -> datetime | None:
+def _to_denver_time(time: str) -> datetime | None:
     if time is None:
         return None
     
@@ -332,7 +330,7 @@ def to_denver_time(time: str) -> datetime | None:
     return time_data.astimezone(ZoneInfo("America/Denver"))
 
 
-def get_queue_history() -> list:
+async def get_queue_history() -> list:
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM queue_history")
     return [row for row in cursor.fetchall()]
@@ -360,7 +358,7 @@ async def daily_reset() -> None:
 @tasks.loop(minutes=1)
 async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     """Check if queue should be auto-opened or auto-closed every minute on weekdays only."""
-    open_hour, open_minute, close_hour, close_minute = get_queue_times()
+    open_hour, open_minute, close_hour, close_minute = await _get_queue_times()
     denver_tz = ZoneInfo("America/Denver")
     current_time = datetime.now(denver_tz) 
     

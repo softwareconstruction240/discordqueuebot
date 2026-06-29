@@ -112,13 +112,13 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
         return await interaction.response.send_message(error_msg, ephemeral=True, delete_after=SHORT_TIMEOUT)
     
     if not entry.is_passoff:
-        increment_help(entry.user_id, entry.username, entry.student_name)
+        await increment_help(entry.user_id, entry.username, entry.student_name)
 
     await dequeue_student(interaction, front_before, entry)
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
     student = await interaction.guild.fetch_member(entry.user_id)
-    interaction.client.help_map[interaction.user.name] = (add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    interaction.client.help_map[interaction.user.name] = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
 
     await move_to_breakout(interaction, entry)
 
@@ -159,7 +159,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         ta_name = interaction.user.name
         try: 
-            set_time_finished(interaction.client.help_map.pop(ta_name)[0])
+            await set_time_finished(interaction.client.help_map.pop(ta_name)[0])
         except (KeyError, TypeError):
             await interaction.response.send_message("Error: Could not find the student you were helping.", ephemeral=True, delete_after=SHORT_TIMEOUT)
             return
@@ -209,7 +209,7 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
     @discord.ui.button(label="Days Since Last Incident", style=discord.ButtonStyle.secondary, custom_id="days_since_incident", emoji="⚠️")
     async def days_since_incident_btn(self, interaction: discord.Interaction, button):
-        reported_by, days, issue_text = get_last_incident_info()
+        reported_by, days, issue_text = await get_last_incident_info()
         if days is None:
             message = "No incidents have been reported yet."
         else:
@@ -219,7 +219,7 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
 
     @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
     async def student_info(self, interaction: discord.Interaction, button):
-        headers, rows = get_student_info()
+        headers, rows = await get_student_info()
         width = STUDENT_INFO_WIDTH
         def row_to_line(items):
             return "| ".join(fixed_width(str(x), width) for x in items)
@@ -237,7 +237,7 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
     async def display_queue_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True, thinking=True)
-        csv_file = get_queue_history_as_csv()
+        csv_file = await get_queue_history_as_csv()
         await interaction.followup.send(file=csv_file)
 
 

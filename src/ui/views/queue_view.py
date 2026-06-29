@@ -13,7 +13,7 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not ok:
             return
 
-        today_help_count = get_times_helped_today(interaction.user.id)
+        today_help_count = await get_times_helped_today(interaction.user.id)
         await interaction.response.send_modal(HelpModal(today_help_count))
 
     @discord.ui.button(label="Passoff", style=discord.ButtonStyle.success, custom_id="passoff", emoji="💪")
