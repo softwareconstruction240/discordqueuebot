@@ -1,7 +1,9 @@
 from typing import Optional
 
 import discord
-from data_access.db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv
+from data_access.queue_history_dao import set_time_finished, add_queue_history_item, get_queue_history_as_csv
+from data_access.bot_incidents_dao import get_last_incident_info
+from data_access.user_stats_dao import increment_help, get_student_info
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import DEFAULT_TIMEOUT, SHORT_TIMEOUT, QUEUE_OPENED, QUEUE_ALREADY_OPEN, QUEUE_CLOSED, QUEUE_ALREADY_CLOSED, STUDENT_INFO_WIDTH, LONG_TIMEOUT, NOW_HELPING_TEMPLATE, TA_VOICE_CHANNEL_NAME

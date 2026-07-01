@@ -9,7 +9,9 @@ from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in
 from records import QueueEntry
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
-from data_access.db import daily_reset, auto_queue_scheduler, set_time_finished
+from data_access.user_stats_dao import daily_reset
+from data_access.queue_history_dao import set_time_finished
+from data_access.config_dao import auto_queue_scheduler
 
 import os
 import random

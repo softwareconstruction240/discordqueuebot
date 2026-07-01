@@ -23,3 +23,6 @@ QUEUE_OPENED = "Queue opened."
 QUEUE_CLOSED = "Queue closed."
 QUEUE_ALREADY_OPEN = "Queue is already open!"
 QUEUE_ALREADY_CLOSED = "Queue is already closed!"
+
+
+QUEUE_SCHEDULE = "daily_queue_hours"
