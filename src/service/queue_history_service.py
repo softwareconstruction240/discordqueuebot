@@ -1,10 +1,10 @@
 import datetime
-from db import get_queue_history
+from src.data_access.db import get_queue_history
 
 class NoTasOnlineError(Exception):
     pass
 
-def calculate_expected_wait_time(
+async def calculate_expected_wait_time(
     num_tas: int,
     queue_size: int,
     available_tas: int | None = None,

@@ -11,73 +11,12 @@ from records import QueueEntry
 from ui.helpers.discord_helpers import update_queue_messages
 from ui.helpers.constants import TA_TEXT_CHANNEL_NAME
 
+
 conn: sqlite3.Connection = sqlite3.connect("./resources/queue.db", detect_types=sqlite3.PARSE_DECLTYPES)
 conn.row_factory = sqlite3.Row
+    
 
 
-async def _initialize_database() -> None:
-    with conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS user_stats (
-                user_id INTEGER PRIMARY KEY,
-                user_name STRING,
-                student_name STRING,
-                total_help INTEGER DEFAULT 0,
-                daily_help INTEGER DEFAULT 0
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS bot_incidents (
-                id INTEGER PRIMARY KEY,
-                reported_by VARCHAR(50),
-                incident_timestamp TEXT,
-                incident TEXT
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS queue_settings (
-                id INTEGER PRIMARY KEY,
-                open_hour INTEGER DEFAULT 8,
-                open_minute INTEGER DEFAULT 0,
-                close_hour INTEGER DEFAULT 20,
-                close_minute INTEGER DEFAULT 0
-            )
-            """
-        )        
-        
-        # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS queue_history (
-                id INTEGER PRIMARY KEY,
-                student_discord_name TEXT,
-                TA_name TEXT,
-                question TEXT,
-                enqueue_time TEXT NOT NULL,
-                dequeue_time TEXT NOT NULL,
-                is_passoff INTEGER CHECK (is_passoff IN (0,1)),
-                in_person INTEGER CHECK (in_person IN (0,1)),
-                time_finished TEXT
-                )
-            """
-        )
-
-
-        # Ensure queue_settings has a default row
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM queue_settings")
-        if cursor.fetchone()[0] == 0:
-            conn.execute("INSERT INTO queue_settings (id, open_hour, open_minute, close_hour, close_minute) VALUES (1, 8, 0, 20, 0)")
-
-
-_initialize_database()
 
 async def increment_help(user_id: int, user_name: str, student_name: Optional[str] = None) -> None:
     """
