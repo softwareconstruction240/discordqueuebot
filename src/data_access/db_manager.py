@@ -27,11 +27,11 @@ class DBManager:
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS user_stats (
-                        user_id INT PRIMARY KEY,
-                        user_name STRING,
-                        student_name STRING,
-                        total_help INTEGER DEFAULT 0,
-                        daily_help INTEGER DEFAULT 0
+                        user_id BIGINT PRIMARY KEY,
+                        user_name VARCHAR(100),
+                        student_name VARCHAR(100),
+                        total_help INT DEFAULT 0,
+                        daily_help INT DEFAULT 0
                     )
                     """
                 )
@@ -39,10 +39,10 @@ class DBManager:
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS bot_incidents (
-                        id INTEGER PRIMARY KEY,
+                        id INT AUTO_INCREMENT PRIMARY KEY,
                         reported_by VARCHAR(50),
-                        incident_timestamp TEXT,
-                        incident TEXT
+                        incident_timestamp DATETIME,
+                        incident VARCHAR(500)
                     )
                     """
                 )
@@ -50,11 +50,11 @@ class DBManager:
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS queue_settings (
-                        id INTEGER PRIMARY KEY,
-                        open_hour INTEGER DEFAULT 8,
-                        open_minute INTEGER DEFAULT 0,
-                        close_hour INTEGER DEFAULT 20,
-                        close_minute INTEGER DEFAULT 0
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        open_hour INT DEFAULT 8,
+                        open_minute INT DEFAULT 0,
+                        close_hour INT DEFAULT 20,
+                        close_minute INT DEFAULT 0
                     )
                     """
                 )        
@@ -63,16 +63,16 @@ class DBManager:
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS queue_history (
-                        id INTEGER PRIMARY KEY,
-                        student_discord_name TEXT,
-                        TA_name TEXT,
-                        question TEXT,
-                        enqueue_time TEXT NOT NULL,
-                        dequeue_time TEXT NOT NULL,
-                        is_passoff INTEGER CHECK (is_passoff IN (0,1)),
-                        in_person INTEGER CHECK (in_person IN (0,1)),
-                        time_finished TEXT
-                    )
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        student_discord_name VARCHAR(100),
+                        TA_name VARCHAR(100),
+                        question VARCHAR(300),
+                        enqueue_time DATETIME NOT NULL,
+                        dequeue_time DATETIME NOT NULL,
+                        is_passoff BOOLEAN NOT NULL,
+                        in_person BOOLEAN NOT NULL,
+                        time_finished DATETIME
+                        )
                     """
                 )
                     
