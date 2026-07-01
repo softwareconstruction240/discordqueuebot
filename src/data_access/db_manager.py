@@ -12,7 +12,7 @@ class _DBManager:
         pass
 
     async def connect(self):
-        self.pool: aiomysql.Pool = aiomysql.create_pool(
+        self.pool: aiomysql.Pool = await aiomysql.create_pool(
             user="root",
             password="SQLPassword",
             host="localhost",
@@ -72,9 +72,9 @@ class _DBManager:
                     """
                     CREATE TABLE IF NOT EXISTS queue_history (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        student_discord_name VARCHAR(100),
-                        TA_name VARCHAR(100),
-                        question VARCHAR(300),
+                        student_discord_name VARCHAR(100) NOT NULL,
+                        TA_name VARCHAR(100) NOT NULL,
+                        question VARCHAR(300) NOT NULL,
                         enqueue_time DATETIME NOT NULL,
                         dequeue_time DATETIME NOT NULL,
                         is_passoff BOOLEAN NOT NULL,
@@ -86,7 +86,7 @@ class _DBManager:
 
                 # Ensure config has a row for default opening/closing
                 await cursor.execute("SELECT COUNT(*) FROM config")
-                if await cursor.fetchone()[0] == 0:
+                if (await cursor.fetchone())[0] == 0:
                     await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", ("daily_queue_hours"))
 
 db_manager = _DBManager()

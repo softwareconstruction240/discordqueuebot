@@ -41,7 +41,7 @@ class Bot(discord.Client):
         Initializes bot UI components (views) and starts background scheduling tasks 
         before the bot fully connects to Discord.
         """
-        db_manager.connect()
+        await db_manager.connect()
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
