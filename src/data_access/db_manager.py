@@ -57,8 +57,8 @@ class _DBManager:
 
                 await cursor.execute(
                     """
-                    CREATE TABLE IF NOT EXISTS queue_settings (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
+                    CREATE TABLE IF NOT EXISTS config (
+                        name VARCHAR(100) PRIMARY KEY,
                         open_hour INT DEFAULT 8,
                         open_minute INT DEFAULT 0,
                         close_hour INT DEFAULT 20,
@@ -95,9 +95,9 @@ class _DBManager:
                      """
                 )
 
-                # Ensure queue_settings has a default row
-                await cursor.execute("SELECT COUNT(*) FROM queue_settings")
+                # Ensure config has a row for default opening/closing
+                await cursor.execute("SELECT COUNT(*) FROM config")
                 if await cursor.fetchone()[0] == 0:
-                    await cursor.execute("INSERT INTO queue_settings (id, open_hour, open_minute, close_hour, close_minute) VALUES (1, 8, 0, 20, 0)")
+                    await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", ("daily_queue_hours"))
 
 db_manager = _DBManager()
