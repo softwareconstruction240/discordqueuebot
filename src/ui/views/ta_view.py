@@ -2,7 +2,7 @@ from typing import Optional
 
 import discord
 from discord.utils import get
-from db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv, server_info_dao
+from data_access.db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv, server_info_dao
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import Channels, Messages, Roles

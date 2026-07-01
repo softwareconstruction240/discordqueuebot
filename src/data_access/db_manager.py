@@ -1,8 +1,17 @@
 import aiomysql
 
+class _DBManager:
+    """Manages connections to the MySQL Database.  
+    Once connect() has been called, use pool.acquire to get a connection to the database.  
+    ### Fields:   
+        pool: Connection pool used to generate connections.  
+    ### Methods:   
+        connect(): initialize pool and database schema
+    """
+    def __init__(self):
+        pass
 
-class DBManager:
-    async def __init__(self):
+    async def connect(self):
         self.pool: aiomysql.Pool = aiomysql.create_pool(
             user="root",
             password="SQLPassword",
@@ -15,7 +24,6 @@ class DBManager:
             maxsize=5,
             autocommit=True
         )
-
         await self._initialize_database()
     
     async def _initialize_database(self):
@@ -91,3 +99,5 @@ class DBManager:
                 await cursor.execute("SELECT COUNT(*) FROM queue_settings")
                 if await cursor.fetchone()[0] == 0:
                     await cursor.execute("INSERT INTO queue_settings (id, open_hour, open_minute, close_hour, close_minute) VALUES (1, 8, 0, 20, 0)")
+
+db_manager = _DBManager()

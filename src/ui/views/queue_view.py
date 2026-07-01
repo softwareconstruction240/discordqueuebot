@@ -1,5 +1,5 @@
 import discord
-from db import get_times_helped_today
+from src.data_access.db import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import Messages
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages

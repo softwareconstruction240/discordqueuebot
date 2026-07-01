@@ -1,6 +1,6 @@
 import discord
 from discord.utils import get
-from db import get_times_helped_today, record_bot_issue, server_info_dao
+from data_access.db import get_times_helped_today, record_bot_issue, server_info_dao
 from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages
 
@@ -223,7 +223,7 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        from db import set_queue_times
+        from data_access.db import set_queue_times
         
         try:
             open_h = int(self.open_hour.value)
