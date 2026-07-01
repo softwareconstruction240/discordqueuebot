@@ -9,7 +9,7 @@ from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in
 from server_script import setup_server, takedown
 from records import QueueEntry
 from datetime import datetime, UTC
-from db import daily_reset, auto_queue_scheduler, set_time_finished, server_info_dao
+from data_access.db import daily_reset, auto_queue_scheduler, set_time_finished, server_info_dao
 
 import os
 import random
