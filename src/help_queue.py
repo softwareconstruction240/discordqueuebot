@@ -1,6 +1,6 @@
 import asyncio
 from typing import Optional
-from data_access.db import get_times_helped_today
+from data_access.user_stats_dao import get_times_helped_today
 from records import QueueEntry
 
 class HelpQueue:

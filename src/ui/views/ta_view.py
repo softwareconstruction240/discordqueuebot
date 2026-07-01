@@ -2,7 +2,10 @@ from typing import Optional
 
 import discord
 from discord.utils import get
-from data_access.db import get_last_incident_info, increment_help, get_student_info, set_time_finished, add_queue_history_item, get_queue_history_as_csv, server_info_dao
+from data_access.queue_history_dao import set_time_finished, add_queue_history_item, get_queue_history_as_csv
+from data_access.bot_incidents_dao import get_last_incident_info
+from data_access.user_stats_dao import increment_help, get_student_info
+from data_access.server_info_dao import get_id
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal
 from ui.helpers.constants import Channels, Messages, Roles
@@ -137,7 +140,7 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
-        channel_id = server_info_dao.get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
+        channel_id = get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
         online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=channel_id)
         
         try:
@@ -151,7 +154,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
             await interaction.response.send_message("You're not currently helping anyone!", ephemeral=True, delete_after=Messages.SHORT_TIMEOUT)
             return
 
-        ta_role_id: int = server_info_dao.get_id(Roles.TA_ROLE, interaction.guild.id)
+        ta_role_id: int = get_id(Roles.TA_ROLE, interaction.guild.id)
         ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
         for member in voice_channel.members:
             if ta_role in member.roles:

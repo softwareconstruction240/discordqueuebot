@@ -1,17 +1,41 @@
 import aiomysql
 
+from ui.helpers.constants import QUEUE_SCHEDULE
+
 class _DBManager:
     """Manages connections to the MySQL Database.  
-    Once connect() has been called, use pool.acquire to get a connection to the database.  
+    Once connect() has been called, use get_conn() to get a connection to the database.  
     ### Fields:   
         pool: Connection pool used to generate connections.  
     ### Methods:   
         connect(): initialize pool and database schema
+        get_conn(): Acquire database connection
     """
     def __init__(self):
         pass
 
     async def connect(self):
+        self.pool: aiomysql.Pool = await aiomysql.create_pool(
+            user="root",
+            password="SQLPassword",
+            host="localhost",
+            port=3306,
+            charset="utf8mb4",
+
+            minsize=1,
+            maxsize=1,
+            autocommit=True
+        )            
+
+        async with self.pool.acquire() as conn:
+            conn: aiomysql.Connection
+            async with conn.cursor() as cursor:
+                cursor: aiomysql.Cursor
+                await cursor.execute("CREATE DATABASE IF NOT EXISTS help_queue")
+
+        self.pool.close()
+        await self.pool.wait_closed()
+
         self.pool: aiomysql.Pool = await aiomysql.create_pool(
             user="root",
             password="SQLPassword",
@@ -25,6 +49,9 @@ class _DBManager:
             autocommit=True
         )
         await self._initialize_database()
+
+    def get_conn(self):
+        return self.pool.acquire()
     
     async def _initialize_database(self):
         async with self.pool.acquire() as conn:
@@ -98,6 +125,6 @@ class _DBManager:
                 # Ensure config has a row for default opening/closing
                 await cursor.execute("SELECT COUNT(*) FROM config")
                 if (await cursor.fetchone())[0] == 0:
-                    await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", ("daily_queue_hours"))
+                    await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", (QUEUE_SCHEDULE,))
 
 db_manager = _DBManager()
