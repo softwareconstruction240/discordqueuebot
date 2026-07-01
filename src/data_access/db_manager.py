@@ -1,6 +1,8 @@
 import aiomysql
-
+import warnings
 from ui.helpers.constants import QUEUE_SCHEDULE
+
+warnings.filterwarnings("ignore", message=r".*exists.*")
 
 class _DBManager:
     """Manages connections to the MySQL Database.  
