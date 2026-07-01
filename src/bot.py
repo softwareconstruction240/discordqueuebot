@@ -8,6 +8,7 @@ from ui.helpers.constants import HELP_CHANNEL_NAME, TA_TEXT_CHANNEL_NAME, TA_VOI
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from records import QueueEntry
 from datetime import datetime, UTC
+from data_access.db_manager import db_manager
 from data_access.db import daily_reset, auto_queue_scheduler, set_time_finished
 
 import os
@@ -40,6 +41,7 @@ class Bot(discord.Client):
         Initializes bot UI components (views) and starts background scheduling tasks 
         before the bot fully connects to Discord.
         """
+        db_manager.connect()
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()

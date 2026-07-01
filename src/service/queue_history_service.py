@@ -1,5 +1,5 @@
 import datetime
-from src.data_access.db import get_queue_history
+from data_access.db import get_queue_history
 
 class NoTasOnlineError(Exception):
     pass
