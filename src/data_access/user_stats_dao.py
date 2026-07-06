@@ -27,9 +27,9 @@ async def increment_help(user_id: int, user_name: str, student_name: Optional[st
             await cursor.execute(
                 """
                 INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help)
-                VALUES (?, ?, ?, 1, 1)
+                VALUES (%s, %s, %s, 1, 1)
                 ON CONFLICT(user_id) DO UPDATE SET
-                    user_name = ?,
+                    user_name = %s,
                     total_help = total_help + 1,
                     daily_help = daily_help + 1
                 """,
@@ -54,13 +54,13 @@ async def _update_student_name(user_id: int, student_name: str) -> None:
         async with conn.cursor(DictCursor) as cursor:
             cursor: DictCursor
 
-            await cursor.execute("SELECT student_name FROM user_stats WHERE user_id=?", (user_id,))
+            await cursor.execute("SELECT student_name FROM user_stats WHERE user_id=%s", (user_id,))
             row = await cursor.fetchone()
 
             existing_name = row["student_name"] if row else ""
             if len(student_name) > len(existing_name or ""):
                 await cursor.execute(
-                    "UPDATE user_stats SET student_name = ? WHERE user_id = ?",
+                    "UPDATE user_stats SET student_name = %s WHERE user_id = %s",
                     (student_name, user_id),
                 )
 
@@ -86,8 +86,10 @@ async def get_student_info() -> tuple[List[str], List[tuple[str, int, int]]]:
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
-            cursor: aiomysql.Cursor
-            for row in await cursor.execute("SELECT COALESCE(NULLIF(student_name, ''), user_name) AS display_name, total_help, daily_help FROM user_stats"):
+            cursor: DictCursor
+            await cursor.execute("SELECT COALESCE(NULLIF(student_name, ''), user_name) AS display_name, total_help, daily_help FROM user_stats")
+            
+            for row in await cursor.fetchall():
                 result[1].append((row["display_name"], row["total_help"], row["daily_help"]))
 
     return result
@@ -98,7 +100,7 @@ async def get_times_helped_today(user_id: int) -> int:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
             cursor: aiomysql.Cursor
-            await cursor.execute("SELECT daily_help FROM user_stats WHERE user_id=?", (user_id,))
+            await cursor.execute("SELECT daily_help FROM user_stats WHERE user_id=%s", (user_id,))
             row = await cursor.fetchone()
             return int(row["daily_help"]) if row else 0
 

@@ -50,4 +50,3 @@ async def calculate_expected_wait_time(
     return base_wait * position
 
 
-calculate_expected_wait_time = calculate_expected_wait_time

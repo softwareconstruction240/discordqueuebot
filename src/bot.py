@@ -148,7 +148,7 @@ class Bot(discord.Client):
         
         #calculate wait time as if you were to join the queue right now
         try:
-            time = calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
+            time = await calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
             minutes = int(time // 60)
             seconds = time % 60
             return f" — expected wait: {minutes}m {seconds}s"
