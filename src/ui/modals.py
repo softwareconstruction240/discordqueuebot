@@ -137,7 +137,7 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
         for channel in interaction.guild.channels:
             if channel.name == TA_TEXT_CHANNEL_NAME:
                 await channel.send(
-                    f"{ta_mention} {interaction.user.display_name} is having trouble with the bot. Description: {issue_text}"
+                    f"ATTENTION {ta_mention}!\n{interaction.user.mention} is having trouble with the bot! Description: {issue_text}"
                 )
                 break
 

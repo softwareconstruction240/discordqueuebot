@@ -12,10 +12,9 @@ async def record_bot_issue(username: str, issue: str) -> None:
             cursor: aiomysql.Cursor
             timestamp = datetime.now(UTC)
             await cursor.execute(
-                "INSERT INTO bot_incidents (incident_timestamp, reported_by, incident) VALUES (?, ?, ?)",
+                "INSERT INTO bot_incidents (incident_timestamp, reported_by, incident) VALUES (%s, %s, %s)",
                 (timestamp, username, issue)
             )
-            conn.commit()
 
 
 async def get_last_incident_info() -> tuple[Optional[str], Optional[int], Optional[str]]:
@@ -34,7 +33,7 @@ async def get_last_incident_info() -> tuple[Optional[str], Optional[int], Option
                 return None, None, None
 
             try:
-                last_incident_time = row["incident_timestamp"]
+                last_incident_time = row["incident_timestamp"].replace(tzinfo=UTC)
             except ValueError:
                 return row["reported_by"] or None, None, row["incident"] or None
 
