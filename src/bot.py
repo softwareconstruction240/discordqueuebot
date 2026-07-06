@@ -63,6 +63,10 @@ class Bot(discord.Client):
             if len(self.queue.entries) > 0:
                 self._player_task = asyncio.create_task(self._play_notifications())
 
+    async def close(self):
+        await db_manager.close()
+        await super().close()
+
     async def _get_ta_voice_channel(self, guild: discord.Guild) -> discord.VoiceChannel | None:
         channel_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
         return get(guild.voice_channels, id=channel_id)

@@ -62,8 +62,11 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
+        waiting_room_id = get_id(Channels.WAITING_ROOM_NAME, interaction.guild.id)
+        waiting_room: discord.VoiceChannel = get(interaction.guild.voice_channels, id=waiting_room_id)
+
         await interaction.response.send_message(
-            f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
+            f"You are #{pos} in the queue.{f" Please join the {waiting_room.mention} voice channel." if not value=="p" else ""}",
             ephemeral=True,
             delete_after=60*5
         )

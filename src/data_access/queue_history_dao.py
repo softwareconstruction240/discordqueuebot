@@ -115,8 +115,8 @@ async def get_queue_history_as_csv() -> discord.File:
 async def get_queue_history() -> list:
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
-        async with conn.cursor() as cursor:
-            cursor: aiomysql.Cursor
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
             await cursor.execute("SELECT * FROM queue_history")
             return [row for row in await cursor.fetchall()]
     

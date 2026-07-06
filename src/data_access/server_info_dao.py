@@ -7,7 +7,7 @@ async def set_id(name: str, guild_id: int, id: int) -> None:
         async with conn.cursor() as cursor:
             cursor: aiomysql.Cursor
             await cursor.execute("""INSERT INTO server_ids (guild_id, resource_name, resource_id)
-                        VALUES (%s, %s, %s)
+                        VALUES (%s, %s, %s) AS new
                         ON DUPLICATE KEY UPDATE 
                             resource_id = new.resource_id""",
                         (guild_id, name, id))

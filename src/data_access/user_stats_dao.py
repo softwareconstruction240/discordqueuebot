@@ -27,13 +27,13 @@ async def increment_help(user_id: int, user_name: str, student_name: Optional[st
             await cursor.execute(
                 """
                 INSERT INTO user_stats (user_id, user_name, student_name, total_help, daily_help)
-                VALUES (%s, %s, %s, 1, 1)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    user_name = %s,
-                    total_help = total_help + 1,
-                    daily_help = daily_help + 1
+                VALUES (%s, %s, %s, 1, 1) AS new
+                ON DUPLICATE KEY UPDATE 
+                    user_name = new.user_name,
+                    total_help = user_stats.total_help + 1,
+                    daily_help = user_stats.daily_help + 1
                 """,
-                (user_id, user_name, student_name or "", user_name),
+                (user_id, user_name, student_name or ""),
             )
 
             if student_name:

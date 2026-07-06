@@ -16,6 +16,11 @@ class _DBManager:
     def __init__(self):
         pass
 
+    async def close(self):
+        if self.pool:
+            self.pool.close()
+            await self.pool.wait_closed()
+
     async def connect(self):
         self.pool: aiomysql.Pool = await aiomysql.create_pool(
             user="root",
