@@ -158,8 +158,8 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
             await interaction.client.queue.clear()
             await update_queue_messages(interaction.client, interaction.guild)
             await interaction.response.send_message("Queue cleared", delete_after=60*5)
-            channel_id: int = get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
-            channel: discord.TextChannel = get(interaction.guild.text_channels, id-channel_id)
+            channel_id: int = await get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
+            channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
             await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
 
 

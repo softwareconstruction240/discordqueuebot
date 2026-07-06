@@ -113,7 +113,7 @@ class Bot(discord.Client):
                 # wait one minute between plays
                 await asyncio.sleep(60)
             except Exception as e:
-                print(e.with_traceback())
+                print("Error!" + e.with_traceback())
                 await asyncio.sleep(60)
 
         # queue empty, disconnect
