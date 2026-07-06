@@ -1,4 +1,4 @@
-from db_manager import db_manager
+from data_access.db_manager import db_manager
 import aiomysql
 
 async def set_id(name: str, guild_id: int, id: int) -> None:
@@ -8,8 +8,8 @@ async def set_id(name: str, guild_id: int, id: int) -> None:
             cursor: aiomysql.Cursor
             await cursor.execute("""INSERT INTO server_ids (guild_id, resource_name, resource_id)
                         VALUES (%s, %s, %s)
-                        ON CONFLICT(guild_id, resource_name) 
-                        DO UPDATE SET resource_id = excluded.resource_id""",
+                        ON DUPLICATE KEY UPDATE 
+                            resource_id = new.resource_id""",
                         (guild_id, name, id))
 
 async def get_id(name: str, guild_id: int) -> int:

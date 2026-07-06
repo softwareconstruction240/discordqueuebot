@@ -77,7 +77,6 @@ class QueueView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
 
-
         container = discord.ui.Container[discord.ui.LayoutView](
             discord.ui.TextDisplay("## Queue Requests"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),

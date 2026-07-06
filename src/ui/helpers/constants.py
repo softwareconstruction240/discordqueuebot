@@ -34,3 +34,4 @@ class Roles:
 
 class Config:
     QUEUE_SCHEDULE = "daily_queue_hours"
+    

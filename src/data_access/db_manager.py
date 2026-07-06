@@ -1,6 +1,6 @@
 import aiomysql
 import warnings
-from ui.helpers.constants import QUEUE_SCHEDULE
+from ui.helpers.constants import Config
 
 warnings.filterwarnings("ignore", message=r".*exists.*")
 
@@ -116,7 +116,7 @@ class _DBManager:
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS server_ids (
-                        guild_id INT NOT NULL,
+                        guild_id BIGINT NOT NULL,
                         resource_name VARCHAR(100) NOT NULL,
                         resource_id BIGINT NOT NULL,
                         PRIMARY KEY(guild_id, resource_name)
@@ -127,6 +127,6 @@ class _DBManager:
                 # Ensure config has a row for default opening/closing
                 await cursor.execute("SELECT COUNT(*) FROM config")
                 if (await cursor.fetchone())[0] == 0:
-                    await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", (QUEUE_SCHEDULE,))
+                    await cursor.execute("INSERT INTO config (name, open_hour, open_minute, close_hour, close_minute) VALUES (%s, 8, 0, 20, 0)", (Config.QUEUE_SCHEDULE,))
 
 db_manager = _DBManager()

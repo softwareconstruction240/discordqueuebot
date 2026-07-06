@@ -48,5 +48,3 @@ async def calculate_expected_wait_time(
     average_wait: datetime.timedelta = total_wait / samples
     base_wait = max(int((queue_size / num_tas) * average_wait.total_seconds()), 180)
     return base_wait * position
-
-

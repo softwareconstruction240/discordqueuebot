@@ -64,7 +64,7 @@ class Bot(discord.Client):
                 self._player_task = asyncio.create_task(self._play_notifications())
 
     async def _get_ta_voice_channel(self, guild: discord.Guild) -> discord.VoiceChannel | None:
-        channel_id = get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
         return get(guild.voice_channels, id=channel_id)
             
 
@@ -127,11 +127,11 @@ class Bot(discord.Client):
         self._player_task = None
 
     async def _get_ta_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
-        channel_id = get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
         return get(guild.text_channels, id=channel_id)
         
     async def _get_help_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
-        channel_id = get_id(Channels.HELP_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.HELP_CHANNEL_NAME, guild.id)
         return get(guild.text_channels, id=channel_id)
     
     async def _get_wait_time(self, guild: discord.Guild):

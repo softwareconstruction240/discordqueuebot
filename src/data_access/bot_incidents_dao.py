@@ -39,4 +39,3 @@ async def get_last_incident_info() -> tuple[Optional[str], Optional[int], Option
 
             delta: timedelta = datetime.now(UTC) - last_incident_time
             return row["reported_by"] or None, delta.days, row["incident"] or None
-

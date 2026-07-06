@@ -68,7 +68,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             delete_after=60*5
         )
 
-        channel_id = get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
@@ -115,7 +115,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             ephemeral=True,
             delete_after=60*5
         )
-        channel_id = get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
@@ -146,7 +146,6 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
                 break
 
 
-
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     warning = discord.ui.TextDisplay("Are you sure? This will remove all students from the queue, and cannot be undone.")
     confirmation = discord.ui.TextInput(label="Please confirm", placeholder="y/n", max_length=1)
@@ -156,13 +155,12 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
             await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
         else:
             # TODO: update queue_history for each student if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
-
             await interaction.client.queue.clear()
             await update_queue_messages(interaction.client, interaction.guild)
             await interaction.response.send_message("Queue cleared", delete_after=60*5)
-            for channel in interaction.guild.channels:
-                if channel.name == "help-queue-chat":
-                    await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
+            channel_id: int = get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
+            channel: discord.TextChannel = get(interaction.guild.text_channels, id-channel_id)
+            await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
 
 
 class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
@@ -253,4 +251,3 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
                 ephemeral=True,
                 delete_after=Messages.SHORT_TIMEOUT
             )
-

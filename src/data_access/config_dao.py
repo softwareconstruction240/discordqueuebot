@@ -51,8 +51,6 @@ async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, clo
             )
 
 
-
-
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
 async def auto_queue_scheduler(bot_client: discord.Client) -> None:
@@ -68,7 +66,7 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     # Get TA text channel
     ta_channel = None
     for guild in bot_client.guilds:
-        channel_id = get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
         ta_channel = get(guild.text_channels, id=channel_id)
         message: str | None = None
         # Check if we should open (at the configured open time)
@@ -81,8 +79,8 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
             bot_client.queue.is_open = False
             message = f"Queue auto-closed at {current_time.strftime('%H:%M')}"
             
-        if ta_channel:
+        if ta_channel and message is not None:
             await ta_channel.send(message, delete_after=30)
         else:
             print(message)
-        await update_queue_messages(bot_client)
+        await update_queue_messages(bot_client, guild)

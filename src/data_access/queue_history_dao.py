@@ -125,4 +125,3 @@ def _to_denver_time(time: datetime) -> datetime | None:
     if time is None:
         return None
     return time.astimezone(ZoneInfo("America/Denver"))
-
