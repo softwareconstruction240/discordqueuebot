@@ -64,6 +64,9 @@ class Bot(discord.Client):
                 self._player_task = asyncio.create_task(self._play_notifications())
 
     async def close(self):
+        self.queue.is_open = False
+        for guild in self.guilds:
+            await update_queue_messages(self, guild)
         await db_manager.close()
         await super().close()
 
