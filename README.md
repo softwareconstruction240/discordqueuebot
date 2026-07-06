@@ -59,6 +59,10 @@ Create a file named `.env` in the `src/resources` directory with the following c
 
 ```txt
 TOKEN=your-token-here
+USERNAME=your-mysql-username
+PASSWORD=your-mysql-password
+HOST=localhost (unless you have an external MySQL database somewhere)
+PORT=3306
 ```
 
 #### 5. In OAuth2 > URL Generator, enable scopes:

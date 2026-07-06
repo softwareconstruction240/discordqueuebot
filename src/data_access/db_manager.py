@@ -1,6 +1,7 @@
 import aiomysql
 import warnings
 from ui.helpers.constants import Config
+from os import getenv
 
 warnings.filterwarnings("ignore", message=r".*exists.*")
 
@@ -14,7 +15,7 @@ class _DBManager:
         get_conn(): Acquire database connection
     """
     def __init__(self):
-        pass
+        self.pool = None
 
     async def close(self):
         if self.pool:
@@ -22,11 +23,13 @@ class _DBManager:
             await self.pool.wait_closed()
 
     async def connect(self):
+        print("Connecting to database at " +getenv("HOST") + ":" + getenv("PORT"))
+
         self.pool: aiomysql.Pool = await aiomysql.create_pool(
-            user="root",
-            password="SQLPassword",
-            host="localhost",
-            port=3306,
+            user=getenv("USER"),
+            password=getenv("PASSWORD"),
+            host=getenv("HOST"),
+            port=int(getenv("PORT")),
             charset="utf8mb4",
 
             minsize=1,
@@ -44,10 +47,10 @@ class _DBManager:
         await self.pool.wait_closed()
 
         self.pool: aiomysql.Pool = await aiomysql.create_pool(
-            user="root",
-            password="SQLPassword",
-            host="localhost",
-            port=3306,
+            user=getenv("USER"),
+            password=getenv("PASSWORD"),
+            host=getenv("HOST"),
+            port=int(getenv("PORT")),
             db="help_queue",
             charset="utf8mb4",
 
@@ -55,7 +58,9 @@ class _DBManager:
             maxsize=5,
             autocommit=True
         )
+        print("Database connection established successfully")
         await self._initialize_database()
+        print("Database initialized successfully")
 
     def get_conn(self):
         return self.pool.acquire()
