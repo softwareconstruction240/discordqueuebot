@@ -72,7 +72,6 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             ephemeral=True,
             wait=True
         )
-        await msg.delete(delay=60*2)
 
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
@@ -82,6 +81,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             delete_after=30
         )
 
+        await msg.delete(delay=60)
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
@@ -102,7 +102,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
                 ephemeral=True,
                 wait=True
             )
-            await msg.delete(delay=20)
+            await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
             return
         
         student_name = self.name.value.strip()
@@ -123,7 +123,6 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             ephemeral=True,
             wait=True
         )
-        await msg.delete(delay=60*2)
 
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
@@ -131,6 +130,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
             delete_after=30
         )
+        await msg.delete(delay=60)
                 
 
 class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
@@ -145,7 +145,6 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
         msg = await interaction.followup.send("The TAs have been notified. They will reach out to you if needed.", ephemeral=True, wait=True)
-        msg.delete(delay=30)
 
         issue_text = self.description.value.strip()
         await record_bot_issue(interaction.user.mention, issue_text)
@@ -157,6 +156,7 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
                     f"ATTENTION {ta_mention}!\n{interaction.user.mention} is having trouble with the bot! Description: {issue_text}"
                 )
                 break
+        await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
 
 
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
@@ -164,16 +164,20 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     confirmation = discord.ui.TextInput(label="Please confirm", placeholder="y/n", max_length=1)
     
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         if self.confirmation.value.lower() != 'y':
-            await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
+            msg = await interaction.followup.send("Clear aborted", ephemeral=True, wait=True)
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
         else:
-            # TODO: update queue_history for each student if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
             await interaction.client.queue.clear()
             await update_queue_messages(interaction.client, interaction.guild)
-            await interaction.response.send_message("Queue cleared", delete_after=60*5)
+
+            msg = await interaction.followup.send("Queue cleared!", wait=True)
             channel_id: int = await get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
             channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
             await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
+            
+            await msg.delete(delay=Messages.LONG_TIMEOUT)
 
 
 class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
@@ -193,8 +197,7 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         ))
 
     async def on_submit(self, interaction: discord.Interaction):
-        # TODO: update queue_history if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
-
+        await interaction.response.defer(thinking=True, ephemeral=True)
         front_before = await interaction.client.queue.get_front()
         user: discord.User = await interaction.client.fetch_user(self.student_user_id)
         await interaction.client.queue.remove(self.student_user_id)
@@ -205,10 +208,13 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         await user.send(
             f"You have been removed from the CS240 help queue.{reason_suffix}"
         )
-        await interaction.response.send_message(
-            f"{user.display_name} has been removed from the queue by {interaction.user.display_name}.",
-            delete_after=60 * 5
+        msg = await interaction.followup.send(
+            f"{user.mention} has been removed from the queue by {interaction.user.mention}.",
+            wait=True
         )
+
+        await msg.delete(delay=Messages.LONG_TIMEOUT)
+
 
 class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
     open_hour = discord.ui.TextInput(
@@ -237,7 +243,7 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        
+        await interaction.response.defer(thinking=True, ephemeral=True)
         try:
             open_h = int(self.open_hour.value)
             open_m = int(self.open_minute.value)
@@ -245,22 +251,24 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
             close_m = int(self.close_minute.value)
             
             if not (0 <= open_h <= 23 and 0 <= open_m <= 59 and 0 <= close_h <= 23 and 0 <= close_m <= 59):
-                await interaction.response.send_message(
+                msg = await interaction.followup.send(
                     "Hours must be 0-23 and minutes must be 0-59.",
                     ephemeral=True,
-                    delete_after=Messages.SHORT_TIMEOUT
-                )
+                    wait=True
+                ) 
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
                 return
             
             await set_queue_times(open_h, open_m, close_h, close_m)
             ta_role = get_role(interaction, "TA")
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"{ta_role.mention} ANNOUNCEMENT: Queue hours updated: Opens at {open_h:02d}:{open_m:02d}, closes at {close_h:02d}:{close_m:02d}",
-                delete_after=60*60*24*7
+                wait=False
             )
         except ValueError:
-            await interaction.response.send_message(
+            msg = await interaction.followup.send(
                 "Please enter valid integers for hours and minutes.",
                 ephemeral=True,
-                delete_after=Messages.SHORT_TIMEOUT
+                wait=True
             )
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
