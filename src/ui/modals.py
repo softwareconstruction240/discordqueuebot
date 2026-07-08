@@ -150,7 +150,7 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
         await record_bot_issue(interaction.user.mention, issue_text)
         ta_role = get(interaction.guild.roles, name="TA")
         ta_mention = ta_role.mention
-        id: int = get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+        id: int = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         channel = get(interaction.guild.text_channels, id=id)
         await channel.send(
             f"ATTENTION {ta_mention}!\n{interaction.user.mention} is having trouble with the bot! Description: {issue_text}"
@@ -196,7 +196,7 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         ))
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        response: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
         front_before = await interaction.client.queue.get_front()
         user: discord.User = await interaction.client.fetch_user(self.student_user_id)
         await interaction.client.queue.remove(self.student_user_id)
@@ -207,12 +207,12 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         await user.send(
             f"You have been removed from the CS240 help queue.{reason_suffix}"
         )
-        msg = await interaction.followup.send(
+        await interaction.channel.send(
             f"{user.mention} has been removed from the queue by {interaction.user.mention}.",
-            wait=True
+            delete_after=Messages.LONG_TIMEOUT
         )
+        await response.resource.delete()
 
-        await msg.delete(delay=Messages.LONG_TIMEOUT)
 
 
 class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):

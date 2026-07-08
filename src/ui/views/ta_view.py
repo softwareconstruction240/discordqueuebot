@@ -56,10 +56,10 @@ class RemoveStudentView(discord.ui.View):
         self.add_item(select)
 
     async def select_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
         selected = self.children[0].values[0]
         if selected == "__cancel__":
-            await interaction.followup.send()
+            await msg.resource.delete()
             return
         
         user_id = int(self.children[0].values[0])
@@ -225,7 +225,7 @@ class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Clear Queue", style=discord.ButtonStyle.danger, custom_id="clear_queue", emoji="💥")
     async def clear_queue(self, interaction: discord.Interaction, button):
         if not interaction.client.queue.entries:
-            await interaction.response.send_message("Queue is empty!")
+            await interaction.response.send_message("Queue is empty!", ephemeral=True)
             return
         await interaction.response.send_modal(ClearConfirmModal())
 
@@ -245,7 +245,7 @@ class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
             "Select a student to remove:\n✅ = Passoff  |  ❓ = Question",
             view=view, ephemeral=True, wait=True 
         )
-        await msg.delete(delay=Messages.LONG_TIMEOUT)
+        await msg.delete(delay=30)
 
 class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
