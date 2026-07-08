@@ -23,10 +23,14 @@ async def _get_queue_times() -> tuple[int, int, int, int]:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
             cursor: DictCursor
-            await cursor.execute("SELECT open_hour, open_minute, close_hour, close_minute FROM config WHERE name = %s", (Config.QUEUE_SCHEDULE,))
+            await cursor.execute("SELECT value FROM config WHERE name = %s", (Config.QUEUE_SCHEDULE,))
             row = await cursor.fetchone()
             if row:
-                return int(row["open_hour"]), int(row["open_minute"]), int(row["close_hour"]), int(row["close_minute"])
+                value: str = row["value"]
+                open_time, close_time = value.split(",")
+                open_time = datetime.fromisoformat(open_time) 
+                close_time = datetime.fromisoformat(close_time)
+                return open_time.hour, open_time.minute, close_time.hour, close_time.minute 
             return 8, 0, 20, 0  # Default to 8:00am-8:00pm
 
 
@@ -41,13 +45,15 @@ async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, clo
     """
     if not (0 <= open_hour <= 23 and 0 <= open_minute <= 59 and 0 <= close_hour <= 23 and 0 <= close_minute <= 59):
         raise ValueError("Hours must be 0-23 and minutes must be 0-59")
+    open_time = datetime(2000, 1, 1, hour=open_hour, minute=open_minute)
+    close_time = datetime(2000, 1, 1, hour=close_hour, minute=close_minute)
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
         async with conn.cursor() as cursor:
             cursor: aiomysql.Cursor
             await cursor.execute(
-                "UPDATE config SET open_hour = %s, open_minute = %s, close_hour = %s, close_minute = %s WHERE name = %s",
-                (open_hour, open_minute, close_hour, close_minute, Config.QUEUE_SCHEDULE)
+                "UPDATE config SET value = %s WHERE name = %s",
+                (f"{open_time.isoformat()},{close_time.isoformat()}", Config.QUEUE_SCHEDULE)
             )
 
 
