@@ -31,3 +31,7 @@ class Messages:
 class Roles:
     TA_ROLE = "TA"
     PROFESSOR_ROLE = "Professor"
+
+class Config:
+    QUEUE_SCHEDULE = "daily_queue_hours"
+    

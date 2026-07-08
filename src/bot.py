@@ -6,10 +6,14 @@ from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
-from server_script import setup_server, takedown
+from server_script import setup_server
 from records import QueueEntry
 from datetime import datetime, UTC
-from db import daily_reset, auto_queue_scheduler, set_time_finished, server_info_dao
+from data_access.db_manager import db_manager
+from data_access.user_stats_dao import daily_reset
+from data_access.queue_history_dao import set_time_finished
+from data_access.config_dao import auto_queue_scheduler
+from data_access.server_info_dao import get_id
 
 import os
 import random
@@ -41,6 +45,7 @@ class Bot(discord.Client):
         Initializes bot UI components (views) and starts background scheduling tasks 
         before the bot fully connects to Discord.
         """
+        await db_manager.connect()
         self.add_view(QueueView())
         self.add_view(TAView())
         daily_reset.start()
@@ -58,8 +63,15 @@ class Bot(discord.Client):
             if len(self.queue.entries) > 0:
                 self._player_task = asyncio.create_task(self._play_notifications())
 
+    async def close(self):
+        self.queue.is_open = False
+        for guild in self.guilds:
+            await update_queue_messages(self, guild)
+        await db_manager.close()
+        await super().close()
+
     async def _get_ta_voice_channel(self, guild: discord.Guild) -> discord.VoiceChannel | None:
-        channel_id = server_info_dao.get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, guild.id)
         return get(guild.voice_channels, id=channel_id)
             
 
@@ -108,7 +120,7 @@ class Bot(discord.Client):
                 # wait one minute between plays
                 await asyncio.sleep(60)
             except Exception as e:
-                print(e.with_traceback())
+                print("Error!" + e.with_traceback())
                 await asyncio.sleep(60)
 
         # queue empty, disconnect
@@ -122,11 +134,11 @@ class Bot(discord.Client):
         self._player_task = None
 
     async def _get_ta_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
-        channel_id = server_info_dao.get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, guild.id)
         return get(guild.text_channels, id=channel_id)
         
     async def _get_help_channel(self, guild: discord.Guild) -> discord.TextChannel | None:
-        channel_id = server_info_dao.get_id(Channels.HELP_CHANNEL_NAME, guild.id)
+        channel_id = await get_id(Channels.HELP_CHANNEL_NAME, guild.id)
         return get(guild.text_channels, id=channel_id)
     
     async def _get_wait_time(self, guild: discord.Guild):
@@ -143,7 +155,7 @@ class Bot(discord.Client):
         
         #calculate wait time as if you were to join the queue right now
         try:
-            time = calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
+            time = await calculate_expected_wait_time(num_tas, queue_size, available_tas, position=queue_size+1)
             minutes = int(time // 60)
             seconds = time % 60
             return f" — expected wait: {minutes}m {seconds}s"
@@ -252,7 +264,7 @@ class Bot(discord.Client):
                 # remove them from the help_map and update the db table
                 for ta in tas_to_remove:
                     tableid, _ = self.help_map.pop(ta)
-                    set_time_finished(tableid)
+                    await set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -295,13 +307,15 @@ bot = Bot()
 
 @bot.tree.command(name="queue")
 async def queue_panel(interaction: discord.Interaction):
-    await interaction.response.send_message(
+    await interaction.response.defer(thinking=True)
+    await interaction.followup.send(
         view=QueueView()
     )
 
 @bot.tree.command(name="ta")
 async def ta_panel(interaction: discord.Interaction):
-    await interaction.response.send_message(
+    await interaction.response.defer(thinking=True)
+    await interaction.followup.send(
         view=TAView()
     )
 

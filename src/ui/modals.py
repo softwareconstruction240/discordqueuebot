@@ -1,6 +1,9 @@
 import discord
 from discord.utils import get
-from db import get_times_helped_today, record_bot_issue, server_info_dao
+from data_access.user_stats_dao import get_times_helped_today
+from data_access.bot_incidents_dao import record_bot_issue
+from data_access.config_dao import set_queue_times
+from data_access.server_info_dao import get_id
 from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages
 
@@ -36,13 +39,15 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             ))
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         value = self.in_person.value.lower()
         if value not in ("o", "p"):
-            await interaction.response.send_message(
-                "Join Queue _**Failed**_. Please enter either `o` or `p` to indicate whether you are online or in-person",
-                ephemeral=True,
-                delete_after=20
+            msg = await interaction.followup.send(
+                "_**Could not join queue**_. Please enter either `o` or `p` to indicate whether you are online or in-person",
+                wait=True,
+                ephemeral=True
             )
+            await msg.delete(delay=20)
             return
         
         student_name = self.name.value.strip()
@@ -55,17 +60,20 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             student_name
         )
 
-        times_helped = get_times_helped_today(interaction.user.id)
+        times_helped = await get_times_helped_today(interaction.user.id)
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
-        await interaction.response.send_message(
-            f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
+        waiting_room_id = await get_id(Channels.WAITING_ROOM_NAME, interaction.guild.id)
+        waiting_room: discord.VoiceChannel = get(interaction.guild.voice_channels, id=waiting_room_id)
+
+        msg = await interaction.followup.send(
+            f"You are #{pos} in the queue.{f" Please join the {waiting_room.mention} voice channel." if not value=="p" else ""}",
             ephemeral=True,
-            delete_after=60*5
+            wait=True
         )
 
-        channel_id = server_info_dao.get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
@@ -73,6 +81,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             delete_after=30
         )
 
+        await msg.delete(delay=60)
 
 class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
@@ -85,13 +94,15 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
     in_person = discord.ui.TextInput(label="Online or In-Person? (o/p)", max_length=1)
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         value = self.in_person.value.lower()
         if value not in ("o", "p"):
-            await interaction.response.send_message(
+            msg = await interaction.followup.send(
                 "_**Could not join queue**_. Please enter `o` or `p` to indicate whether you are online or in-person",
                 ephemeral=True,
-                delete_after=30
+                wait=True
             )
+            await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
             return
         
         student_name = self.name.value.strip()
@@ -107,17 +118,19 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
-        await interaction.response.send_message(
+        msg = await interaction.followup.send(
             f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
             ephemeral=True,
-            delete_after=60*5
+            wait=True
         )
-        channel_id = server_info_dao.get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+
+        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
         await ta_channel.send(
             f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
             delete_after=30
         )
+        await msg.delete(delay=60)
                 
 
 class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
@@ -130,18 +143,19 @@ class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message("The TAs have been notified. They will reach out to you if needed.", ephemeral=True, delete_after=30)
-        issue_text = self.description.value.strip()
-        record_bot_issue(interaction.user.mention, issue_text)
-        ta_role = discord.utils.get(interaction.guild.roles, name="TA")
-        ta_mention = ta_role.mention
-        for channel in interaction.guild.channels:
-            if channel.name == Channels.TA_TEXT_CHANNEL_NAME:
-                await channel.send(
-                    f"{ta_mention} {interaction.user.display_name} is having trouble with the bot. Description: {issue_text}"
-                )
-                break
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        msg = await interaction.followup.send("The TAs have been notified. They will reach out to you if needed.", ephemeral=True, wait=True)
 
+        issue_text = self.description.value.strip()
+        await record_bot_issue(interaction.user.mention, issue_text)
+        ta_role = get(interaction.guild.roles, name="TA")
+        ta_mention = ta_role.mention
+        id: int = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
+        channel = get(interaction.guild.text_channels, id=id)
+        await channel.send(
+            f"ATTENTION {ta_mention}!\n{interaction.user.mention} is having trouble with the bot! Description: {issue_text}"
+        )
+        await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
 
 
 class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
@@ -149,17 +163,20 @@ class ClearConfirmModal(discord.ui.Modal, title="Clear Confirmation"):
     confirmation = discord.ui.TextInput(label="Please confirm", placeholder="y/n", max_length=1)
     
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         if self.confirmation.value.lower() != 'y':
-            await interaction.response.send_message("Clear aborted", ephemeral=True, delete_after=10)
+            msg = await interaction.followup.send("Clear aborted", ephemeral=True, wait=True)
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
         else:
-            # TODO: update queue_history for each student if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
-
             await interaction.client.queue.clear()
             await update_queue_messages(interaction.client, interaction.guild)
-            await interaction.response.send_message("Queue cleared", delete_after=60*5)
-            for channel in interaction.guild.channels:
-                if channel.name == "help-queue-chat":
-                    await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
+
+            msg = await interaction.followup.send("Queue cleared!", wait=True)
+            channel_id: int = await get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
+            channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
+            await channel.send("All students have been removed from the queue. Sorry we couldn't get to you!", delete_after=60*10)
+            
+            await msg.delete(delay=Messages.LONG_TIMEOUT)
 
 
 class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
@@ -179,8 +196,7 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         ))
 
     async def on_submit(self, interaction: discord.Interaction):
-        # TODO: update queue_history if necessary (add/update a row with done_getting_help_time or time_helped depending on implementation)
-
+        response: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
         front_before = await interaction.client.queue.get_front()
         user: discord.User = await interaction.client.fetch_user(self.student_user_id)
         await interaction.client.queue.remove(self.student_user_id)
@@ -191,10 +207,13 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
         await user.send(
             f"You have been removed from the CS240 help queue.{reason_suffix}"
         )
-        await interaction.response.send_message(
-            f"{user.display_name} has been removed from the queue by {interaction.user.display_name}.",
-            delete_after=60 * 5
+        await interaction.channel.send(
+            f"{user.mention} has been removed from the queue by {interaction.user.mention}.",
+            delete_after=Messages.LONG_TIMEOUT
         )
+        await response.resource.delete()
+
+
 
 class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
     open_hour = discord.ui.TextInput(
@@ -223,8 +242,7 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        from db import set_queue_times
-        
+        await interaction.response.defer(thinking=True)
         try:
             open_h = int(self.open_hour.value)
             open_m = int(self.open_minute.value)
@@ -232,23 +250,24 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
             close_m = int(self.close_minute.value)
             
             if not (0 <= open_h <= 23 and 0 <= open_m <= 59 and 0 <= close_h <= 23 and 0 <= close_m <= 59):
-                await interaction.response.send_message(
+                msg = await interaction.followup.send(
                     "Hours must be 0-23 and minutes must be 0-59.",
                     ephemeral=True,
-                    delete_after=Messages.SHORT_TIMEOUT
-                )
+                    wait=True
+                ) 
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
                 return
             
-            set_queue_times(open_h, open_m, close_h, close_m)
+            await set_queue_times(open_h, open_m, close_h, close_m)
             ta_role = get_role(interaction, "TA")
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"{ta_role.mention} ANNOUNCEMENT: Queue hours updated: Opens at {open_h:02d}:{open_m:02d}, closes at {close_h:02d}:{close_m:02d}",
-                delete_after=60*60*24*7
+                ephemeral=False
             )
         except ValueError:
-            await interaction.response.send_message(
+            msg = await interaction.followup.send(
                 "Please enter valid integers for hours and minutes.",
                 ephemeral=True,
-                delete_after=Messages.SHORT_TIMEOUT
+                wait=True
             )
-
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)

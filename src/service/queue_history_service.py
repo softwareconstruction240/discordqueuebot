@@ -1,10 +1,10 @@
-import datetime
-from db import get_queue_history
+from datetime import timedelta, UTC
+from data_access.queue_history_dao import get_queue_history
 
 class NoTasOnlineError(Exception):
     pass
 
-def calculate_expected_wait_time(
+async def calculate_expected_wait_time(
     num_tas: int,
     queue_size: int,
     available_tas: int | None = None,
@@ -33,21 +33,18 @@ def calculate_expected_wait_time(
     if available_tas is not None and available_tas >= position:
         return 20 * position
 
-    queue_history: list = get_queue_history()
-    recent = list(queue_history)[::-1]
+    queue_history: list = await get_queue_history()
+    recent = queue_history[::-1]
     samples = min(20, len(recent))
     if samples == 0:
         return 180 * position
 
-    total_wait = datetime.timedelta()
+    total_wait = timedelta()
     for history_item in recent[:samples]:
-        enqueue_time = datetime.datetime.fromisoformat(history_item["enqueue_time"])
-        dequeue_time = datetime.datetime.fromisoformat(history_item["dequeue_time"])
+        enqueue_time = history_item["enqueue_time"].replace(tzinfo=UTC)
+        dequeue_time = history_item["dequeue_time"].replace(tzinfo=UTC)
         total_wait += dequeue_time - enqueue_time
 
-    average_wait: datetime.timedelta = total_wait / samples
+    average_wait: timedelta = total_wait / samples
     base_wait = max(int((queue_size / num_tas) * average_wait.total_seconds()), 180)
     return base_wait * position
-
-
-calculate_expected_wait_time = calculate_expected_wait_time
