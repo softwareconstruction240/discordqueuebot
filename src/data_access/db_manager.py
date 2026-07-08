@@ -133,10 +133,15 @@ class _DBManager:
                      """
                 )
 
-                # Ensure config has a row for default opening/closing
-                await cursor.execute("SELECT COUNT(*) FROM config")
-                if (await cursor.fetchone())[0] == 0:
-                    await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.QUEUE_SCHEDULE, f"{datetime(2000, 1, 1, hour=8, minute=0).isoformat()},{datetime(2000, 1, 1, hour=20, minute=0).isoformat()}"))
-                    await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.TA_MEETING, datetime(2000, 1, 1, hour = 7, minute = 0).isoformat()))
+                await cursor.execute("TRUNCATE TABLE config")
+                await default_configuration(cursor)
 
 db_manager = _DBManager()
+
+
+async def default_configuration(cursor: aiomysql.Cursor):
+    await cursor.execute("SELECT COUNT(*) FROM config")
+    if (await cursor.fetchone())[0] == 0:
+        await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.QUEUE_SCHEDULE, f"{datetime(2000, 1, 1, hour=8, minute=0).isoformat()},{datetime(2000, 1, 1, hour=20, minute=0).isoformat()}"))
+        await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.TA_MEETING, f"MON,{datetime(2000, 1, 1, hour = 7, minute = 0).isoformat()}"))
+        await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.DEVOTIONAL, f"TUE,{datetime(200, 1, 1, hour=11, minute=0)}"))

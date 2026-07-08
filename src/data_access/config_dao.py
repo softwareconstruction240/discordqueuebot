@@ -56,7 +56,7 @@ async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, clo
                 (f"{open_time.isoformat()},{close_time.isoformat()}", Config.QUEUE_SCHEDULE)
             )
 
-async def set_ta_meeting(ta_meeting_hour: int, ta_meeting_minute: int):
+async def set_ta_meeting(day: str, ta_meeting_hour: int, ta_meeting_minute: int):
     if not (0 <= ta_meeting_hour <= 23 and 0 <= ta_meeting_minute <= 59):
         raise ValueError("Hours must be 0-23 and minutes must be 0-59")
     ta_meeting_time = datetime(2000, 1, 1, hour=ta_meeting_hour, minute=ta_meeting_minute)
@@ -64,7 +64,7 @@ async def set_ta_meeting(ta_meeting_hour: int, ta_meeting_minute: int):
         conn: aiomysql.Connection
         async with conn.cursor() as cursor:
             cursor: aiomysql.Cursor
-            await cursor.execute("UPDATE config SET value = %s WHERE name = %s", (ta_meeting_time.isoformat(), Config.TA_MEETING))
+            await cursor.execute("UPDATE config SET value = %s WHERE name = %s", (f"{day},{ta_meeting_time.isoformat()}", Config.TA_MEETING))
 
 async def _get_ta_meeting() -> datetime:
     async with db_manager.get_conn() as conn:
@@ -75,8 +75,9 @@ async def _get_ta_meeting() -> datetime:
             row = await cursor.fetchone()
             if row:
                 value: str = row["value"]
-                ta_meeting_time = datetime.fromisoformat(value)
-                return ta_meeting_time
+                day, ta_meeting_time = value.split(",")
+                ta_meeting_time = datetime.fromisoformat(ta_meeting_time)
+                return day, ta_meeting_time
             
             # if no TA meeting has been configured, set the queue closing time to one hour before opening time so that when it opens after the meeting it will not conflict.
             open_time, _ = await _get_queue_times()
@@ -88,24 +89,26 @@ async def set_devotional_hours():
 async def _get_devotional_hours():
     pass
 
-def _should_open(current_time: datetime, open_time: datetime, meeting_time: datetime):
+def _should_open(current_time: datetime, open_time: datetime, meeting_time: datetime, meeting_day: str):
     begin_queue_hours: bool = current_time.hour == open_time.hour and current_time.minute == open_time.minute
-    finish_ta_meeting: bool = current_time.hour == meeting_time.hour+1 and current_time.minute == meeting_time.minute
+    finish_ta_meeting: bool = current_time.hour == meeting_time.hour+1 and current_time.minute == meeting_time.minute and current_time.weekday() == day_to_int(meeting_day)
     return begin_queue_hours or finish_ta_meeting
 
-def _should_close(current_time: datetime, close_time: datetime, meeting_time: datetime):
+def _should_close(current_time: datetime, close_time: datetime, meeting_time: datetime, meeting_day: str):
     finish_queue_hours: bool = current_time.hour == close_time.hour and current_time.minute == close_time.minute
-    begin_ta_meeting: bool = current_time.hour == meeting_time.hour and current_time.minute == meeting_time.minute
+    begin_ta_meeting: bool = current_time.hour == meeting_time.hour and current_time.minute == meeting_time.minute and current_time.weekday() == day_to_int(meeting_day)
     return finish_queue_hours or begin_ta_meeting
 
-
+def day_to_int(day: str):
+    days = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+    return days.index(day)
 
 # Queue auto-open/close scheduled tasks
 @tasks.loop(minutes=1)
 async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     """Check if queue should be auto-opened or auto-closed every minute on weekdays only."""
     open_time, close_time = await _get_queue_times()
-    meeting_time = await _get_ta_meeting()
+    meeting_day, meeting_time = await _get_ta_meeting()
     denver_tz = ZoneInfo("America/Denver")
     current_time = datetime.now(denver_tz) 
     
@@ -115,12 +118,12 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     
     message: str | None = None
     # Check if we should open (at the configured open time)
-    if _should_open(current_time, open_time, meeting_time) and not bot_client.queue.is_open:
+    if _should_open(current_time, open_time, meeting_time, meeting_day) and not bot_client.queue.is_open:
         bot_client.queue.is_open = True
         message = f"Queue auto-opened at {current_time.strftime('%H:%M')}"
 
     # Check if we should close (at the configured close time)
-    elif _should_close(current_time, close_time, meeting_time) and bot_client.queue.is_open:
+    elif _should_close(current_time, close_time, meeting_time, meeting_day) and bot_client.queue.is_open:
         bot_client.queue.is_open = False
         message = f"Queue auto-closed at {current_time.strftime('%H:%M')}"
     

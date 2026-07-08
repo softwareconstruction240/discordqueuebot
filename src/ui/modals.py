@@ -273,28 +273,27 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
 
 class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
+    day = discord.ui.TextInput(label="Day of Meeting", placeholder="Mon/Tue/Wed/Thu/Fri", min_length=3, max_length=3, required=True)
     meeting_hour = discord.ui.TextInput(label="Meeting Hour (0-23)", placeholder="12", required=True, max_length=2)
-    meeting_minute = discord.ui.TextInput(label="Meeting Minute (0-59)", placeholder="00", required=False, max_length=2)
+    meeting_minute = discord.ui.TextInput(label="Meeting Minute (0-59)", placeholder="00", required=False, max_length=2, default=0)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         try:
+            day = self.day.value.upper()
             hour = int(self.meeting_hour.value)
-            if self.meeting_minute.value:
-                minute = int(self.meeting_minute.value)
-            else:
-                minute = 0
+            minute = int(self.meeting_minute.value)
             
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            if not (0 <= hour <= 23 and 0 <= minute <= 59 and day in ("MON", "TUE", "WED", "THU", "FRI")):
                 msg = await interaction.followup.send(
-                    "Hour must be 0-23 and minute must be 0-59.",
+                    "Day must be the first three letters of a weekday. Hour must be 0-23 and minute must be 0-59.",
                     ephemeral=True,
                     wait=True
-                ) 
+                )
                 await msg.delete(delay=Messages.SHORT_TIMEOUT)
                 return
             
-            await set_ta_meeting(hour, minute)
+            await set_ta_meeting(day, hour, minute)
             ta_role = get_role(interaction, "TA")
             await interaction.followup.send(
                 f"{ta_role.mention} ANNOUNCEMENT: TA meeting time updated: {hour:02d}:{minute:02d}",
