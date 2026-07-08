@@ -87,7 +87,7 @@ class _DBManager:
                     """
                     CREATE TABLE IF NOT EXISTS bot_incidents (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        reported_by VARCHAR(50),
+                        reported_by VARCHAR(100),
                         incident_timestamp DATETIME,
                         incident VARCHAR(500)
                     )

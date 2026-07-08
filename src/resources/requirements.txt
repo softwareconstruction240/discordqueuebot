@@ -3,3 +3,4 @@ python-dotenv
 PyNaCl
 davey
 tzdata
+aiomysql
