@@ -6,8 +6,9 @@ from data_access.queue_history_dao import set_time_finished, add_queue_history_i
 from data_access.bot_incidents_dao import get_last_incident_info
 from data_access.user_stats_dao import increment_help, get_student_info
 from data_access.server_info_dao import get_id
+from data_access.config_dao import remove_saturday_hours
 from records import QueueEntry
-from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal
+from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
@@ -295,6 +296,28 @@ class TAConfig(discord.ui.ActionRow[discord.ui.LayoutView]):
     async def edit_devotional_time(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(EditDevotionalTimeModal())
 
+    @discord.ui.button(label="Saturday Hours", style=discord.ButtonStyle.green, custom_id="saturday_hours", emoji="🗓️")
+    async def get_saturday_hours_view(self, interaction: discord.Interaction, button):
+        await interaction.response.send_message(view=SaturdayView(), ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT)
+
+class SaturdayView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+    
+    @discord.ui.button(label="Edit Hours", style=discord.ButtonStyle.green)
+    async def edit_hours(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(EditSaturdayHoursModal())
+
+    @discord.ui.button(label="Remove Saturday Hours", style=discord.ButtonStyle.danger)
+    async def saturday_offline(self, interaction: discord.Interaction, button):
+        await interaction.response.defer(thinking=True)
+        await remove_saturday_hours()
+
+        ta_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+        ta_role = get(interaction.guild.roles, id=ta_id)
+        await interaction.followup.send(
+            f"{ta_role.mention} ANNOUNCEMENT: Saturday hours removed! The queue will no longer auto-start on saturdays."
+        )
 
 class TAView(discord.ui.LayoutView):
 

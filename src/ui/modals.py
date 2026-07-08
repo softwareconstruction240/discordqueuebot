@@ -2,7 +2,7 @@ import discord
 from discord.utils import get
 from data_access.user_stats_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
-from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours
+from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id
 from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages, Roles
@@ -341,6 +341,52 @@ class EditDevotionalTimeModal(discord.ui.Modal, title="Edit Devotional Time"):
         except ValueError:
             msg = await interaction.followup.send(
                 "Please enter valid integers for hours and minutes.",
+                ephemeral=True,
+                wait=True
+            )
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
+
+
+
+class EditSaturdayHoursModal(discord.ui.Modal, title="Edit Saturday Hours"):
+    open = discord.ui.TextInput(
+        label="Saturday Open Time (24-hour time)",
+        placeholder="08:00",
+        min_length=3,
+        max_length=5
+    )
+    close = discord.ui.TextInput(
+        label="Saturday Close Time (24-hour time)",
+        placeholder="20:00",
+        min_length=3,
+        max_length=5
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        response: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
+        try:
+            open_h, open_m = [int(time) for time in self.open.value.split(":")]
+            close_h, close_m = [int(time) for time in self.close.value.split(":")]
+
+            if not (0 <= open_h <= 23 and 0 <= open_m <= 59 and 0 <= open_h <= 23 and 0 <= open_m <= 59):
+                msg = await interaction.followup.send(
+                    "Hour must be 0-23 and minute must be 0-59.",
+                    ephemeral=True,
+                    wait=True
+                )
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
+                return
+            
+            await set_saturday_hours(open_h, open_m, close_h, close_m)
+            ta_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+            ta_role = get(interaction.guild.roles, id=ta_id)
+            await response.resource.delete()
+            await interaction.channel.send(
+                f"{ta_role.mention} ANNOUNCEMENT: Saturday hours updated: {open_h:02d}:{open_m:02d} to {close_h:02d}:{close_m:02d}"
+            )
+        except ValueError:
+            msg: discord.WebhookMessage = await interaction.followup.send(
+                "Input should be in the following format: `##:##`. Please enter valid integers for hours and minutes.",
                 ephemeral=True,
                 wait=True
             )

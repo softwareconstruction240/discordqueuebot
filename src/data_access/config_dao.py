@@ -110,6 +110,49 @@ async def _get_devotional_hours() -> tuple[str, datetime]:
             # if no devotional has been configured, set to tuesday at 11am
             return "TUE", datetime(2000, 1, 1, hour=11, minute=0)
 
+async def set_saturday_hours(open_hour: int, open_minute: int, close_hour: int, close_minute: int) -> None:
+    open_at: datetime = datetime(2000, 1, 1, hour=open_hour, minute = open_minute)
+    close_at: datetime = datetime(2000, 1, 1, hour=open_hour, minute=close_minute)
+
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute(
+                """
+                INSERT INTO config (name, value)
+                VALUES (%s, %s) AS new
+                ON DUPLICATE KEY UPDATE value = new.value
+                """,
+                (Config.SATURDAY_HOURS, f"{open_at.isoformat()},{close_at.isoformat()}")
+            )
+
+
+async def remove_saturday_hours() -> None:
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute("DELETE FROM config WHERE name = %s", (Config.SATURDAY_HOURS,))
+
+
+async def _get_saturday_hours() -> tuple[datetime, datetime] | None:
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute("SELECT value FROM config WHERE name = %s", (Config.SATURDAY_HOURS,))
+            row = await cursor.fetchone()
+            if row:
+                value: str = row["value"]
+                open, close = value.split(",")
+                open = datetime.fromisoformat(open)
+                close = datetime.fromisoformat(close)
+                return open, close
+            
+            return None
+
+
 def _should_open(current_time: datetime, open_time: datetime, meeting_time: datetime, meeting_day: str, devo_time: datetime, devo_day: str) -> bool:
     begin_queue_hours: bool = current_time.hour == open_time.hour and current_time.minute == open_time.minute
     finish_ta_meeting: bool = current_time.hour == meeting_time.hour+1 and current_time.minute == meeting_time.minute and current_time.weekday() == day_to_int(meeting_day)
@@ -135,10 +178,16 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     devo_day, devo_time = await _get_devotional_hours()
     denver_tz = ZoneInfo("America/Denver")
     current_time = datetime.now(denver_tz) 
+    current_time = datetime(2024, 1, 6, hour=current_time.hour, minute=current_time.minute, second=current_time.second)
     
     # Only run on weekdays (Monday-Friday; 5=Saturday, 6=Sunday)
-    if current_time.weekday() >= 5:
+    if current_time.weekday() == 6:
         return
+    elif current_time.weekday() == 5:
+        try:
+            open_time, close_time = await _get_saturday_hours()
+        except TypeError:
+            return
     
     message: str | None = None
     # Check if we should open (at the configured open time)
