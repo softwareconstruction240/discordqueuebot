@@ -271,3 +271,9 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
                 wait=True
             )
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
+
+class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
+    open_hour = discord.ui.TextDisplay("Not implemented yet!")
+
+    async def on_submit(interaction: discord.Interaction):
+        await interaction.response.defer()

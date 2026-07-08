@@ -7,7 +7,7 @@ from data_access.bot_incidents_dao import get_last_incident_info
 from data_access.user_stats_dao import increment_help, get_student_info
 from data_access.server_info_dao import get_id
 from records import QueueEntry
-from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal
+from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
@@ -274,9 +274,6 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
         builder = f"```Student Info:\n{row_to_line(headers)}\n{divider}\n{body}```"
         await interaction.followup.send(builder, ephemeral=True)
 
-    @discord.ui.button(label="Edit Hours", style=discord.ButtonStyle.secondary, custom_id="edit_hours", emoji="🕐")
-    async def edit_queue_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(EditQueueHoursModal())
 
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
     async def display_queue_history(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -284,6 +281,15 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
         csv_file = await get_queue_history_as_csv()
         await interaction.followup.send(file=csv_file)
 
+class TAConfigView(discord.ui.ActionRow[discord.ui.LayoutView]):
+    view: "TAView"
+    @discord.ui.button(label="Edit Queue Hours", style=discord.ButtonStyle.secondary, custom_id="edit_hours", emoji="🕐")
+    async def edit_queue_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(EditQueueHoursModal())
+
+    @discord.ui.button(label="Edit TA Meeting", style=discord.ButtonStyle.blurple, custom_id="edit_ta_meeting", emoji="🤝")
+    async def edit_ta_meeting_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(EditMeetingHoursModal())
 
 class TAView(discord.ui.LayoutView):
 
