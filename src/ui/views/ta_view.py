@@ -7,7 +7,7 @@ from data_access.bot_incidents_dao import get_last_incident_info
 from data_access.user_stats_dao import increment_help, get_student_info
 from data_access.server_info_dao import get_id
 from records import QueueEntry
-from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal
+from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal
 from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
@@ -290,6 +290,11 @@ class TAConfig(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Edit TA Meeting", style=discord.ButtonStyle.blurple, custom_id="edit_ta_meeting", emoji="🤝")
     async def edit_ta_meeting_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(EditMeetingHoursModal())
+
+    @discord.ui.button(label="Edit Devotional Time", style=discord.ButtonStyle.red, custom_id="edit_devotional", emoji="🙏")
+    async def edit_devotional_time(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(EditDevotionalTimeModal())
+
 
 class TAView(discord.ui.LayoutView):
 

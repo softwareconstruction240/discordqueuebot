@@ -5,7 +5,7 @@ from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours
 from data_access.server_info_dao import get_id
 from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
-from ui.helpers.constants import Channels, Messages
+from ui.helpers.constants import Channels, Messages, Roles
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -294,9 +294,48 @@ class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
                 return
             
             await set_ta_meeting(day, hour, minute)
-            ta_role = get_role(interaction, "TA")
+            ta_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+            ta_role = get(interaction.guild.roles, id=ta_id)
             await interaction.followup.send(
                 f"{ta_role.mention} ANNOUNCEMENT: TA meeting time updated: {hour:02d}:{minute:02d}",
+                ephemeral=False
+            )
+        except ValueError:
+            msg = await interaction.followup.send(
+                "Please enter valid integers for hours and minutes.",
+                ephemeral=True,
+                wait=True
+            )
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
+
+
+
+class EditDevotionalTimeModal(discord.ui.Modal, title="Edit Devotional Time"):
+    day = discord.ui.TextInput(label="Day of Devotional", placeholder="Mon/Tue/Wed/Thu/Fri", min_length=3, max_length=3, required=True)
+    meeting_hour = discord.ui.TextInput(label="Devotional Hour (0-23)", placeholder="11", required=True, max_length=2)
+    meeting_minute = discord.ui.TextInput(label="Devotional Minute (0-59)", placeholder="00", required=False, max_length=2, default=0)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True)
+        try:
+            day = self.day.value.upper()
+            hour = int(self.meeting_hour.value)
+            minute = int(self.meeting_minute.value)
+            
+            if not (0 <= hour <= 23 and 0 <= minute <= 59 and day in ("MON", "TUE", "WED", "THU", "FRI")):
+                msg = await interaction.followup.send(
+                    "Day must be the first three letters of a weekday. Hour must be 0-23 and minute must be 0-59.",
+                    ephemeral=True,
+                    wait=True
+                )
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
+                return
+            
+            await set_devotional_hours(day, hour, minute)
+            ta_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+            ta_role = get(interaction.guild.roles, id=ta_id)
+            await interaction.followup.send(
+                f"{ta_role.mention} ANNOUNCEMENT: Devotional time updated: {hour:02d}:{minute:02d}",
                 ephemeral=False
             )
         except ValueError:
