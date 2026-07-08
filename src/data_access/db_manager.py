@@ -137,5 +137,6 @@ class _DBManager:
                 await cursor.execute("SELECT COUNT(*) FROM config")
                 if (await cursor.fetchone())[0] == 0:
                     await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.QUEUE_SCHEDULE, f"{datetime(2000, 1, 1, hour=8, minute=0).isoformat()},{datetime(2000, 1, 1, hour=20, minute=0).isoformat()}"))
+                    await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.TA_MEETING, datetime(2000, 1, 1, hour = 7, minute = 0).isoformat()))
 
 db_manager = _DBManager()

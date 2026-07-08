@@ -64,7 +64,7 @@ async def set_ta_meeting(ta_meeting_hour: int, ta_meeting_minute: int):
         conn: aiomysql.Connection
         async with conn.cursor() as cursor:
             cursor: aiomysql.Cursor
-            cursor.execute("UPDATE config SET value = %s WHERE name = %s", (ta_meeting_time.isoformat(), Config.TA_MEETING))
+            await cursor.execute("UPDATE config SET value = %s WHERE name = %s", (ta_meeting_time.isoformat(), Config.TA_MEETING))
 
 async def _get_ta_meeting() -> datetime:
     async with db_manager.get_conn() as conn:
@@ -74,7 +74,7 @@ async def _get_ta_meeting() -> datetime:
             await cursor.execute("SELECT value FROM config WHERE name = %s", (Config.TA_MEETING,))
             row = await cursor.fetchone()
             if row:
-                value: str = row[0]
+                value: str = row["value"]
                 ta_meeting_time = datetime.fromisoformat(value)
                 return ta_meeting_time
             

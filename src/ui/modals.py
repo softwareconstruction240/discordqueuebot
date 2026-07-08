@@ -2,7 +2,7 @@ import discord
 from discord.utils import get
 from data_access.user_stats_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
-from data_access.config_dao import set_queue_times
+from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours
 from data_access.server_info_dao import get_id
 from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages
@@ -273,7 +273,37 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
 
 class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
-    open_hour = discord.ui.TextDisplay("Not implemented yet!")
+    meeting_hour = discord.ui.TextInput(label="Meeting Hour (0-23)", placeholder="12", required=True, max_length=2)
+    meeting_minute = discord.ui.TextInput(label="Meeting Minute (0-59)", placeholder="00", required=False, max_length=2)
 
-    async def on_submit(interaction: discord.Interaction):
-        await interaction.response.defer()
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True)
+        try:
+            hour = int(self.meeting_hour.value)
+            if self.meeting_minute.value:
+                minute = int(self.meeting_minute.value)
+            else:
+                minute = 0
+            
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                msg = await interaction.followup.send(
+                    "Hour must be 0-23 and minute must be 0-59.",
+                    ephemeral=True,
+                    wait=True
+                ) 
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
+                return
+            
+            await set_ta_meeting(hour, minute)
+            ta_role = get_role(interaction, "TA")
+            await interaction.followup.send(
+                f"{ta_role.mention} ANNOUNCEMENT: TA meeting time updated: {hour:02d}:{minute:02d}",
+                ephemeral=False
+            )
+        except ValueError:
+            msg = await interaction.followup.send(
+                "Please enter valid integers for hours and minutes.",
+                ephemeral=True,
+                wait=True
+            )
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)

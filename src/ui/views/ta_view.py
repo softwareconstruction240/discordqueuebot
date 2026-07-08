@@ -281,7 +281,7 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
         csv_file = await get_queue_history_as_csv()
         await interaction.followup.send(file=csv_file)
 
-class TAConfigView(discord.ui.ActionRow[discord.ui.LayoutView]):
+class TAConfig(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
     @discord.ui.button(label="Edit Queue Hours", style=discord.ButtonStyle.secondary, custom_id="edit_hours", emoji="🕐")
     async def edit_queue_hours(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -314,6 +314,11 @@ class TAView(discord.ui.LayoutView):
             discord.ui.Separator(visible=False, spacing=discord.SeparatorSpacing.large),
             discord.ui.TextDisplay("### Information/Upkeep"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            TAQueueInformation()
+            TAQueueInformation(),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.large),
+            discord.ui.TextDisplay("### Configuration"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            TAConfig()
+
         )
         self.add_item(container)
