@@ -4,8 +4,9 @@ from data_access.user_stats_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id
-from ui.helpers.discord_helpers import update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages, Roles
+from ui.helpers.discord_helpers import update_queue_messages, notify_next_if_changed
+from ui.helpers.queue_helpers import sanitize_details
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
 
@@ -54,7 +55,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
         await interaction.client.queue_handler(
             interaction,
-            self.question.value,
+            sanitize_details(self.question.value),
             False,
             value == "p",
             student_name
@@ -76,7 +77,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {self.question.value} "
+            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {sanitize_details(self.question.value)} "
             f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
             delete_after=30
         )
@@ -109,7 +110,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
         await interaction.client.queue_handler(
             interaction,
-            self.phase.value,
+            sanitize_details(self.phase.value),
             True,
             self.in_person.value.lower() == "p",
             student_name
@@ -129,7 +130,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {self.phase.value}",
+            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {sanitize_details(self.phase.value)}",
             delete_after=30
         )
         await msg.delete(delay=60)
