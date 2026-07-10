@@ -167,25 +167,18 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         try:
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
             voice_channel: discord.VoiceChannel = ta_voice_state.channel
+            ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
+            ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
+            for member in voice_channel.members:
+                if ta_role in member.roles:
+                    continue
+                else:
+                    await member.move_to(None)
+            await interaction.user.move_to(online_ta_vc)
         except discord.NotFound:
-            msg = await interaction.followup.send("You must be in a voice channel to use this command.", ephemeral=True, wait=True)
+            msg = await interaction.followup.send(f"Rejoin the {online_ta_vc.mention} channel!", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
-            return
         
-        if voice_channel == online_ta_vc:
-            msg = await interaction.followup.send("You're not currently helping anyone!", ephemeral=True, wait=True)
-            await msg.delete(delay=Messages.SHORT_TIMEOUT)
-            return
-
-        ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
-        ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
-        for member in voice_channel.members:
-            if ta_role in member.roles:
-                continue
-            else:
-                await member.move_to(None)
-        await interaction.user.move_to(online_ta_vc)
-
         ta_name = interaction.user.name
         try: 
             await set_time_finished(interaction.client.help_map.pop(ta_name)[0])
