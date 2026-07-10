@@ -216,38 +216,24 @@ class RemoveConfirmModal(discord.ui.Modal, title="Removal Confirmation"):
 
 
 class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
-    open_hour = discord.ui.TextInput(
-        label="Queue Open Hour (0-23)",
-        placeholder="8",
-        min_length=1,
-        max_length=2
+    open = discord.ui.TextInput(
+        label="Weekday Open Time (24-hour time)",
+        placeholder="08:00",
+        min_length=3,
+        max_length=5
     )
-    open_minute = discord.ui.TextInput(
-        label="Queue Open Minute (0-59)",
-        placeholder="00",
-        min_length=1,
-        max_length=2
-    )
-    close_hour = discord.ui.TextInput(
-        label="Queue Close Hour (0-23)",
-        placeholder="20",
-        min_length=1,
-        max_length=2
-    )
-    close_minute = discord.ui.TextInput(
-        label="Queue Close Minute (0-59)",
-        placeholder="00",
-        min_length=1,
-        max_length=2
+    close = discord.ui.TextInput(
+        label="Weekday Close Time (24-hour time)",
+        placeholder="20:00",
+        min_length=3,
+        max_length=5
     )
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         try:
-            open_h = int(self.open_hour.value)
-            open_m = int(self.open_minute.value)
-            close_h = int(self.close_hour.value)
-            close_m = int(self.close_minute.value)
+            open_h, open_m = [int(time) for time in self.open.value.split(":")]
+            close_h, close_m = [int(time) for time in self.close.value.split(":")]
             
             if not (0 <= open_h <= 23 and 0 <= open_m <= 59 and 0 <= close_h <= 23 and 0 <= close_m <= 59):
                 msg = await interaction.followup.send(
@@ -266,7 +252,7 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
             )
         except ValueError:
             msg = await interaction.followup.send(
-                "Please enter valid integers for hours and minutes.",
+                "Input should be in the following format: `##:##`. Please enter valid integers for hours and minutes.",
                 ephemeral=True,
                 wait=True
             )
@@ -274,15 +260,13 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
 
 class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
     day = discord.ui.TextInput(label="Day of Meeting", placeholder="Mon/Tue/Wed/Thu/Fri", min_length=3, max_length=3, required=True)
-    meeting_hour = discord.ui.TextInput(label="Meeting Hour (0-23)", placeholder="12", required=True, max_length=2)
-    meeting_minute = discord.ui.TextInput(label="Meeting Minute (0-59)", placeholder="00", required=False, max_length=2, default=0)
+    time = discord.ui.TextInput(label="Meeting Time (24-hour time)", placeholder="12:00", required=True, min_length=3, max_length=5)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         try:
             day = self.day.value.upper()
-            hour = int(self.meeting_hour.value)
-            minute = int(self.meeting_minute.value)
+            hour, minute = [int(value) for value in self.time.value.split(":")]
             
             if not (0 <= hour <= 23 and 0 <= minute <= 59 and day in ("MON", "TUE", "WED", "THU", "FRI")):
                 msg = await interaction.followup.send(
@@ -302,7 +286,7 @@ class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
             )
         except ValueError:
             msg = await interaction.followup.send(
-                "Please enter valid integers for hours and minutes.",
+                "Input should be in the following format: `##:##`. Please enter valid integers for hours and minutes.",
                 ephemeral=True,
                 wait=True
             )
@@ -312,15 +296,13 @@ class EditMeetingHoursModal(discord.ui.Modal, title="Edit TA Meeting Hours"):
 
 class EditDevotionalTimeModal(discord.ui.Modal, title="Edit Devotional Time"):
     day = discord.ui.TextInput(label="Day of Devotional", placeholder="Mon/Tue/Wed/Thu/Fri", min_length=3, max_length=3, required=True)
-    meeting_hour = discord.ui.TextInput(label="Devotional Hour (0-23)", placeholder="11", required=True, max_length=2)
-    meeting_minute = discord.ui.TextInput(label="Devotional Minute (0-59)", placeholder="00", required=False, max_length=2, default=0)
+    time = discord.ui.TextInput(label="Devotional Time (24-hour time)", placeholder="11:00", required=True, min_length=3, max_length=5)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         try:
             day = self.day.value.upper()
-            hour = int(self.meeting_hour.value)
-            minute = int(self.meeting_minute.value)
+            hour, minute = [int(value) for value in self.time.value.split(":")]
             
             if not (0 <= hour <= 23 and 0 <= minute <= 59 and day in ("MON", "TUE", "WED", "THU", "FRI")):
                 msg = await interaction.followup.send(
@@ -340,7 +322,7 @@ class EditDevotionalTimeModal(discord.ui.Modal, title="Edit Devotional Time"):
             )
         except ValueError:
             msg = await interaction.followup.send(
-                "Please enter valid integers for hours and minutes.",
+                "Input should be in the following format: `##:##`. Please enter valid integers for hours and minutes.",
                 ephemeral=True,
                 wait=True
             )
