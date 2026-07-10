@@ -153,6 +153,45 @@ async def _get_saturday_hours() -> tuple[datetime, datetime] | None:
             return None
 
 
+async def get_config_data():
+    """
+    Fetch all config table rows and return a readable string.
+    """
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor() as cursor:
+            cursor: aiomysql.Cursor
+            await cursor.execute("SELECT name, value FROM config ORDER BY name")
+            rows = await cursor.fetchall()
+
+    # Build readable output
+    lines = []
+    for name, raw_value in rows:
+        raw_value: str
+        parts = raw_value.split(",")
+
+        formatted_parts = []
+        for part in parts:
+            formatted_parts.append(_try_format_datetime(part))
+
+        formatted_value = ", ".join(formatted_parts)
+        lines.append(f"{name} = {formatted_value}")
+
+    return "\n".join(lines)
+
+def _try_format_datetime(value: str):
+    """
+    Try to parse a datetime string and return HH:MM.
+    If parsing fails, return the original string.
+    """
+
+    try:
+        dt = datetime.fromisoformat(value)
+        return dt.strftime("%H:%M")
+    except ValueError:
+        return value  # Not a datetime
+
+
 def _should_open(current_time: datetime, open_time: datetime, meeting_time: datetime, meeting_day: str, devo_time: datetime, devo_day: str) -> bool:
     begin_queue_hours: bool = current_time.hour == open_time.hour and current_time.minute == open_time.minute
     finish_ta_meeting: bool = current_time.hour == meeting_time.hour+1 and current_time.minute == meeting_time.minute and current_time.weekday() == day_to_int(meeting_day)
