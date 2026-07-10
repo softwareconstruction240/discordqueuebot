@@ -112,7 +112,7 @@ async def _get_devotional_hours() -> tuple[str, datetime]:
 
 async def set_saturday_hours(open_hour: int, open_minute: int, close_hour: int, close_minute: int) -> None:
     open_at: datetime = datetime(2000, 1, 1, hour=open_hour, minute = open_minute)
-    close_at: datetime = datetime(2000, 1, 1, hour=open_hour, minute=close_minute)
+    close_at: datetime = datetime(2000, 1, 1, hour=close_hour, minute=close_minute)
 
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
@@ -209,7 +209,7 @@ def day_to_int(day: str) -> int:
     return days.index(day)
 
 # Queue auto-open/close scheduled tasks
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=0.9)
 async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     """Check if queue should be auto-opened or auto-closed every minute on weekdays only."""
     open_time, close_time = await _get_queue_times()
@@ -217,7 +217,6 @@ async def auto_queue_scheduler(bot_client: discord.Client) -> None:
     devo_day, devo_time = await _get_devotional_hours()
     denver_tz = ZoneInfo("America/Denver")
     current_time = datetime.now(denver_tz) 
-    current_time = datetime(2024, 1, 6, hour=current_time.hour, minute=current_time.minute, second=current_time.second)
     
     # Only run on weekdays (Monday-Friday; 5=Saturday, 6=Sunday)
     if current_time.weekday() == 6:

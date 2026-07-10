@@ -300,7 +300,7 @@ class TAConfig(discord.ui.ActionRow[discord.ui.LayoutView]):
     async def get_saturday_hours_view(self, interaction: discord.Interaction, button):
         await interaction.response.send_message(view=SaturdayView(), ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT)
 
-    @discord.ui.button(label="See Current Settings", style=discord.ButtonStyle.gray, custom_id="see_current_config")
+    @discord.ui.button(label="See Current Settings", style=discord.ButtonStyle.gray, custom_id="see_current_config", emoji="⚙️")
     async def see_current_config(self, interaction: discord.Interaction, button):
         await interaction.response.defer(thinking=True, ephemeral=True)
         current_config = await get_config_data()
