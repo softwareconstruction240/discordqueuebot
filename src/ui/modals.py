@@ -4,7 +4,7 @@ from data_access.user_stats_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id
-from ui.helpers.discord_helpers import get_channel, get_role, update_queue_messages, notify_next_if_changed
+from ui.helpers.discord_helpers import update_queue_messages, notify_next_if_changed
 from ui.helpers.constants import Channels, Messages, Roles
 
 class HelpModal(discord.ui.Modal, title="Request Help"):
@@ -118,8 +118,10 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
+        waiting_room_id = await get_id(Channels.WAITING_ROOM_NAME, interaction.guild.id)
+        waiting_room = get(interaction.guild.voice_channels, id=waiting_room_id)
         msg = await interaction.followup.send(
-            f"You are #{pos} in the queue.{f" Please join the {get_channel(interaction, "Waiting Room").mention} voice channel." if not value=="p" else ""}",
+            f"You are #{pos} in the queue.{f" Please join the {waiting_room.mention} voice channel." if not value=="p" else ""}",
             ephemeral=True,
             wait=True
         )
@@ -245,7 +247,8 @@ class EditQueueHoursModal(discord.ui.Modal, title="Edit Queue Hours"):
                 return
             
             await set_queue_times(open_h, open_m, close_h, close_m)
-            ta_role = get_role(interaction, "TA")
+            ta_role_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+            ta_role = get(interaction.guild.roles, id=ta_role_id)
             await interaction.followup.send(
                 f"{ta_role.mention} ANNOUNCEMENT: Queue hours updated: Opens at {open_h:02d}:{open_m:02d}, closes at {close_h:02d}:{close_m:02d}",
                 ephemeral=False

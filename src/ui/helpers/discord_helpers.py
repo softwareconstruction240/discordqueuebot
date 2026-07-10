@@ -1,14 +1,9 @@
 import discord
-from discord.utils import get as discord_get
+from discord.utils import get as get
 from typing import Optional
 from records import QueueEntry
+from data_access.server_info_dao import get_id
 from ui.helpers.constants import Channels, Messages
-
-def get_channel(interaction: discord.Interaction, channel_name: str) -> Optional[discord.abc.GuildChannel]:
-    return discord_get(interaction.guild.channels, name=channel_name)
-
-def get_role(interaction: discord.Interaction, role_name: str) -> Optional[discord.Role]:
-    return discord_get(interaction.guild.roles, name=role_name)
 
 def get_next_available_breakout(interaction: discord.Interaction):
     for vc in interaction.guild.voice_channels:
@@ -23,7 +18,7 @@ def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta
     if voice_channel is None:
         return 0
 
-    ta_role = discord_get(voice_channel.guild.roles, name=ta_role_name)
+    ta_role = get(voice_channel.guild.roles, name=ta_role_name)
     if ta_role is None:
         return 0
 
@@ -39,7 +34,7 @@ def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, 
         return 0
 
     guild = guild or interaction.guild
-    ta_role = discord_get(guild.roles, name=ta_role_name)
+    ta_role = get(guild.roles, name=ta_role_name)
     if ta_role is None:
         return 0
 
@@ -78,9 +73,11 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
         ta: discord.Member = interaction.user
     if entry.in_person:
         try:
-            await ta.move_to(get_channel(interaction, Channels.IN_PERSON_CHANNEL_NAME))
+            channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
+            in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
+            await ta.move_to(in_person_channel)
         except Exception:
-            await ta.send("Because you weren't in the Online TAs voice channel, you need to join the In Person with Student channel manually. Please do so now.")
+            await ta.send(f"Because you weren't in the Online TAs voice channel, you need to join the {in_person_channel.mention} channel manually. Please do so now.")
 
     else:
         breakout_channel: discord.VoiceChannel = get_next_available_breakout(interaction)
