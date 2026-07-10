@@ -43,8 +43,6 @@ async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, clo
         close_hour: Hour to close (0-23)
         close_minute: Minute to close (0-59)
     """
-    if not (0 <= open_hour <= 23 and 0 <= open_minute <= 59 and 0 <= close_hour <= 23 and 0 <= close_minute <= 59):
-        raise ValueError("Hours must be 0-23 and minutes must be 0-59")
     open_time = datetime(2000, 1, 1, hour=open_hour, minute=open_minute)
     close_time = datetime(2000, 1, 1, hour=close_hour, minute=close_minute)
     async with db_manager.get_conn() as conn:
@@ -57,8 +55,6 @@ async def set_queue_times(open_hour: int, open_minute: int, close_hour: int, clo
             )
 
 async def set_ta_meeting(day: str, ta_meeting_hour: int, ta_meeting_minute: int):
-    if not (0 <= ta_meeting_hour <= 23 and 0 <= ta_meeting_minute <= 59):
-        raise ValueError("Hours must be 0-23 and minutes must be 0-59")
     ta_meeting_time = datetime(2000, 1, 1, hour=ta_meeting_hour, minute=ta_meeting_minute)
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
@@ -85,8 +81,6 @@ async def _get_ta_meeting() -> tuple[str, datetime]:
             return "MON", meeting_time
 
 async def set_devotional_hours(day, devotional_hour, devotional_minute):
-    if not (0 <= devotional_hour <= 23 and 0 <= devotional_minute <= 59):
-        raise ValueError("Hours must be 0-23 and minutes must be 0-59")
     devotional_time = datetime(2000, 1, 1, hour=devotional_hour, minute=devotional_minute)
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
