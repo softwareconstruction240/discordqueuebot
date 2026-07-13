@@ -80,9 +80,10 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
         ta: discord.Member = interaction.user
     if entry.in_person:
         try:
-            channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
-            in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
-            await ta.move_to(in_person_channel)
+            if ta.voice.channel.id not in [await get_id(breakout_name, interaction.guild.id) for breakout_name in Channels.BREAKOUT_NAMES]:
+                channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
+                in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
+                await ta.move_to(in_person_channel)
         except Exception:
             await ta.send(f"Because you weren't in the Online TAs voice channel, you need to join the {in_person_channel.mention} channel manually. Please do so now.")
 
