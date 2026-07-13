@@ -5,9 +5,16 @@ from records import QueueEntry
 from data_access.server_info_dao import get_id
 from ui.helpers.constants import Channels, Messages
 
-def get_next_available_breakout(interaction: discord.Interaction):
+async def get_next_available_breakout(interaction: discord.Interaction):
+    breakout_ids = []
+    for name in Channels.BREAKOUT_NAMES:
+        breakout_ids.append(await get_id(name, interaction.guild.id))
+
+    if (channel := interaction.user.voice.channel) and channel.id in breakout_ids:
+        return interaction.user.voice.channel
+
     for vc in interaction.guild.voice_channels:
-        if vc.name in Channels.BREAKOUT_NAMES and vc.members == []:
+        if vc.id in breakout_ids and vc.members == []:
             return vc
 
     return None
@@ -67,7 +74,7 @@ async def update_queue_messages(client: discord.Client, guild: discord.Guild) ->
 async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     student: discord.Member = interaction.guild.get_member(entry.user_id)
     if student is None:
-        student: discord.User = await interaction.client.fetch_user(entry.user_id)
+        student = await interaction.client.fetch_user(entry.user_id)
     ta: discord.Member = interaction.guild.get_member(interaction.user.id)
     if ta is None:
         ta: discord.Member = interaction.user
@@ -80,12 +87,10 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
             await ta.send(f"Because you weren't in the Online TAs voice channel, you need to join the {in_person_channel.mention} channel manually. Please do so now.")
 
     else:
-        breakout_channel: discord.VoiceChannel = get_next_available_breakout(interaction)
+        breakout_channel: discord.VoiceChannel = await get_next_available_breakout(interaction)
         if breakout_channel is None: 
-            interaction.response.send_message(
+            interaction.followup.send(
                 "No breakout rooms available at this time. Tough luck.", 
-                ephemeral=True, 
-                delete_after=Messages.SHORT_TIMEOUT
             )
 
         try:
