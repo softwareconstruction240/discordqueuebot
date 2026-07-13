@@ -34,4 +34,7 @@ class Roles:
 
 class Config:
     QUEUE_SCHEDULE = "daily_queue_hours"
+    TA_MEETING = "ta_meeting_hours"
+    DEVOTIONAL = "devotional_hours"
+    SATURDAY_HOURS = "saturday_hours"
     
