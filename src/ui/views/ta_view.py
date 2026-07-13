@@ -119,12 +119,14 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
 async def help_next_student(interaction: discord.Interaction, passoff_only: bool = False, online_only: bool = False, error_msg: str = "Queue is empty."):
     msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
     if (interaction.user.name in interaction.client.help_map.keys()):
-        msg = await interaction.followup.send(
-            "You are currently helping a student! Use \"Finish Helping Student\" to be able to help more students!", 
-            ephemeral=True, wait=True
-        )
-        await msg.delete(delay=Messages.SHORT_TIMEOUT)
-        return
+        # get confirmation
+#       msg = await interaction.followup.send(
+#           "You are currently helping a student! Use \"Finish Helping Student\" to be able to help more students!", 
+#           ephemeral=True, wait=True
+#       )
+#       await msg.delete(delay=Messages.SHORT_TIMEOUT)
+#       return
+        pass
 
     front_before = await interaction.client.queue.get_front()
 
@@ -144,7 +146,11 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
     student = await interaction.guild.fetch_member(entry.user_id)
-    interaction.client.help_map[interaction.user.name] = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    new_entry = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    if interaction.user.name in interaction.client.help_map:
+        interaction.client.help_map[interaction.user.name].append(new_entry)
+    else: 
+        interaction.client.help_map[interaction.user.name] = [new_entry]
 
     await move_to_breakout(interaction, entry)
 
@@ -181,7 +187,9 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         
         ta_name = interaction.user.name
         try: 
-            await set_time_finished(interaction.client.help_map.pop(ta_name)[0])
+            for entry in interaction.client.help_map[ta_name]:
+                await set_time_finished(entry[0])
+                
         except (KeyError, TypeError):
             msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
