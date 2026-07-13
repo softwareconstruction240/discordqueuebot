@@ -97,35 +97,38 @@ class TAQueueControls1(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
     @discord.ui.button(label="Next Student", style=discord.ButtonStyle.blurple, custom_id="next", emoji="➡️")
     async def next(self, interaction: discord.Interaction, button):
-        await help_next_student(interaction)
+        await confirm_help(interaction)
 
     @discord.ui.button(label="Next Student (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online", emoji="💻")
     async def next_online(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await help_next_student(interaction, online_only=True, error_msg="No online students in the queue.")
+        await confirm_help(interaction, online_only=True, error_msg="No online students in the queue.")
 
 
 class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Next Passoff", style=discord.ButtonStyle.blurple, custom_id="next_passoff", emoji="✅")
     async def next_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await help_next_student(interaction, passoff_only=True, error_msg="No students awaiting passoff.")
+        await confirm_help(interaction, passoff_only=True, error_msg="No students awaiting passoff.")
         
 
 
     @discord.ui.button(label="Next Passoff (Online)", style=discord.ButtonStyle.blurple, custom_id="next_online_passoff", emoji="☑️")
     async def next_online_passoff(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await help_next_student(interaction, passoff_only=True, online_only=True, error_msg="No online students awaiting passoff.")
+        await confirm_help(interaction, passoff_only=True, online_only=True, error_msg="No online students awaiting passoff.")
 
 
-async def help_next_student(interaction: discord.Interaction, passoff_only: bool = False, online_only: bool = False, error_msg: str = "Queue is empty."):
-    msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
+async def confirm_help(interaction: discord.Interaction, passoff_only: bool = False, online_only: bool = False, error_msg: str = "Queue is empty."):
     if (interaction.user.name in interaction.client.help_map.keys()):
-        msg = await interaction.followup.send(
-            "You are currently helping a student! Use \"Finish Helping Student\" to be able to help more students!", 
-            ephemeral=True, wait=True
+        await interaction.response.send_message(
+            "You are already helping at least one student. Are you sure you want to help another one at the same time?",
+            view=MultiHelpView(passoff_only, online_only, error_msg), ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT
         )
-        await msg.delete(delay=Messages.SHORT_TIMEOUT)
         return
 
+    await help_next_student(interaction, passoff_only, online_only, error_msg)
+    
+    
+async def help_next_student(interaction: discord.Interaction, passoff_only: bool = False, online_only: bool = False, error_msg: str = "Queue is empty."):
+    msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
     front_before = await interaction.client.queue.get_front()
 
     entry: Optional[QueueEntry] = await interaction.client.queue.next(passoff_only=passoff_only, online_only=online_only)
@@ -142,9 +145,14 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
 
     await msg.resource.delete()
 
+
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
     student = await interaction.guild.fetch_member(entry.user_id)
-    interaction.client.help_map[interaction.user.name] = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    new_entry = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    if interaction.user.name in interaction.client.help_map:
+        interaction.client.help_map[interaction.user.name].append(new_entry)
+    else: 
+        interaction.client.help_map[interaction.user.name] = [new_entry]
 
     await move_to_breakout(interaction, entry)
 
@@ -157,6 +165,33 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
     await notify_next_if_changed(interaction.client, front_before)
     await update_queue_messages(interaction.client, interaction.guild)
 
+
+
+class MultiHelpView(discord.ui.View):
+    def __init__(self, passoff_only: bool, online_only: bool, error_msg: str):
+        super().__init__(timeout=30)
+        self.passoff_only = passoff_only
+        self.online_only = online_only
+        self.error_msg = error_msg
+    
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.green)
+    async def continue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await help_next_student(interaction, self.passoff_only, self.online_only, self.error_msg)
+        await self.disable(interaction)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
+        await self.disable(interaction)
+        await msg.resource.delete()
+
+    async def disable(self, interaction: discord.Interaction):
+        for button in self.children:
+            button: discord.ui.Button
+            button.disabled = True
+        await interaction.followup.edit_message(interaction.message.id, content="Done!", view=self)
+
+        
 class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Finish Helping Student", style=discord.ButtonStyle.green, custom_id="finish", emoji="🔚")
     async def finish_button(self, interaction: discord.Interaction, button):
@@ -181,12 +216,16 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         
         ta_name = interaction.user.name
         try: 
-            await set_time_finished(interaction.client.help_map.pop(ta_name)[0])
+            for entry in interaction.client.help_map[ta_name]:
+                await set_time_finished(entry[0])
+            interaction.client.help_map.pop(ta_name)
+                
         except (KeyError, TypeError):
             msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
             return
         await response.resource.delete()
+        await update_queue_messages(interaction.client, interaction.guild)
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
