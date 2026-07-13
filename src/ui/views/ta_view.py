@@ -187,6 +187,7 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
             return
         await response.resource.delete()
+        await update_queue_messages(interaction.client, interaction.guild)
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
