@@ -1,4 +1,5 @@
 import asyncio
+from discord.utils import get
 from typing import Optional
 from data_access.queue_history_dao import get_times_helped_today
 from records import QueueEntry
@@ -55,12 +56,13 @@ class HelpQueue:
         async with self.lock:
             if not self.entries:
                 return "Queue is empty."
+            
 
             out = ["Students in queue:\n"]
             for i, e in enumerate(self.entries, start=1):
                 p_tag = "PASSOFF" if e.is_passoff else "HELP"
                 o_tag = "ONLINE" if not e.in_person else "IN-PERSON"
-                times_helped = await get_times_helped_today(e.student_name)
+                times_helped = await get_times_helped_today(e.username)
                 display_name = e.username
                 if e.student_name:
                     display_name = f"{e.username} ({e.student_name})"

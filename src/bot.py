@@ -10,7 +10,6 @@ from server_script import setup_server
 from records import QueueEntry
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
-from data_access.user_stats_dao import daily_reset
 from data_access.queue_history_dao import set_time_finished, get_students_not_finished
 from data_access.config_dao import auto_queue_scheduler
 from data_access.server_info_dao import get_id
@@ -48,7 +47,6 @@ class Bot(discord.Client):
         await db_manager.connect()
         self.add_view(QueueView())
         self.add_view(TAView())
-        daily_reset.start()
         auto_queue_scheduler.start(self) 
         asyncio.create_task(self._refresh_queue_status_messages())    
         asyncio.create_task(self._refresh_help_map()) 

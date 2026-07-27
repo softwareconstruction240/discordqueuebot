@@ -137,7 +137,7 @@ async def get_times_helped_today(username: str) -> int:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
             cursor: DictCursor
-            await cursor.execute("SELECT COUNT(*) FROM queue_history WHERE student_discord_name = %s AND DATE(time_finished) = DATE(NOW())", (username,))
+            await cursor.execute("SELECT COUNT(*) FROM queue_history WHERE student_discord_name = %s AND DATE(time_finished) = DATE(NOW()) AND is_passoff = 0", (username,))
             row = await cursor.fetchone()
             return int(row["COUNT(*)"]) if row else 0
 

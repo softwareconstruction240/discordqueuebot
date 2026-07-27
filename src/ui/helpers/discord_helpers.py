@@ -10,8 +10,8 @@ async def get_next_available_breakout(interaction: discord.Interaction):
     for name in Channels.BREAKOUT_NAMES:
         breakout_ids.append(await get_id(name, interaction.guild.id))
 
-    if (channel := interaction.user.voice.channel) and channel.id in breakout_ids:
-        return interaction.user.voice.channel
+    if (voice := interaction.user.voice) and voice.channel.id in breakout_ids:
+        return voice.channel
 
     for vc in interaction.guild.voice_channels:
         if vc.id in breakout_ids and vc.members == []:
@@ -80,9 +80,9 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
         ta: discord.Member = interaction.user
     if entry.in_person:
         try:
+            channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
+            in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
             if ta.voice.channel.id not in [await get_id(breakout_name, interaction.guild.id) for breakout_name in Channels.BREAKOUT_NAMES]:
-                channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
-                in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
                 await ta.move_to(in_person_channel)
         except Exception:
             await ta.send(f"Because you weren't in the Online TAs voice channel, you need to join the {in_person_channel.mention} channel manually. Please do so now.")
@@ -90,9 +90,10 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     else:
         breakout_channel: discord.VoiceChannel = await get_next_available_breakout(interaction)
         if breakout_channel is None: 
-            interaction.followup.send(
+            await interaction.followup.send(
                 "No breakout rooms available at this time. Tough luck.", 
             )
+            return
 
         try:
             await ta.move_to(breakout_channel)

@@ -192,33 +192,36 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         channel_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
         online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=channel_id)
         
+        ta_name = interaction.user.name
+        try: 
+            for entry in interaction.client.help_map[ta_name]:
+                await set_time_finished(entry[0])
+            interaction.client.help_map.pop(ta_name)
+        except (KeyError, TypeError):
+            msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
+            return
+
         try:
             ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
             voice_channel: discord.VoiceChannel = ta_voice_state.channel
             ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
             ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
+
             for member in voice_channel.members:
                 if ta_role in member.roles:
                     continue
                 else:
                     await member.move_to(None)
             await interaction.user.move_to(online_ta_vc)
+            await response.resource.delete()
         except discord.NotFound:
             msg = await interaction.followup.send(f"Rejoin the {online_ta_vc.mention} channel!", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
-        
-        ta_name = interaction.user.name
-        try: 
-            for entry in interaction.client.help_map[ta_name]:
-                await set_time_finished(entry[0])
-            interaction.client.help_map.pop(ta_name)
-                
-        except (KeyError, TypeError):
-            msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
-            await msg.delete(delay=Messages.SHORT_TIMEOUT)
-            return
-        await response.resource.delete()
-        await update_queue_messages(interaction.client, interaction.guild)
+
+        finally:
+            await update_queue_messages(interaction.client, interaction.guild)
+
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
