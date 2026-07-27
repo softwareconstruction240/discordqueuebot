@@ -4,7 +4,6 @@ import discord
 from discord.utils import get
 from data_access.queue_history_dao import set_time_finished, add_queue_history_item, get_queue_history_as_csv
 from data_access.bot_incidents_dao import get_last_incident_info
-from data_access.user_stats_dao import increment_help, get_student_info
 from data_access.server_info_dao import get_id
 from data_access.config_dao import remove_saturday_hours, get_config_data
 from records import QueueEntry
@@ -138,9 +137,6 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
         await msg.delete(delay=Messages.SHORT_TIMEOUT)
         return 
     
-    if not entry.is_passoff:
-        await increment_help(entry.user_id, entry.username, entry.student_name)
-
     await dequeue_student(interaction, front_before, entry)
 
     await msg.resource.delete()
@@ -270,7 +266,7 @@ class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
             msg = await interaction.followup.send(
                 "Queue is empty.", ephemeral=True, wait=True
             )
-            msg.delete(delay=Messages.SHORT_TIMEOUT)
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
             return
 
         view = RemoveStudentView(entries)
@@ -293,19 +289,6 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         msg = await interaction.followup.send(message, ephemeral=True, wait=True)
         await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
-
-    @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
-    async def student_info(self, interaction: discord.Interaction, button):
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        headers, rows = await get_student_info()
-        width = Messages.STUDENT_INFO_WIDTH
-        def row_to_line(items):
-            return "| ".join(fixed_width(str(x), width) for x in items)
-
-        divider = "-" * (width * len(headers) + 3 * (len(headers)-1))
-        body = "\n".join(row_to_line(r) for r in rows)
-        builder = f"```Student Info:\n{row_to_line(headers)}\n{divider}\n{body}```"
-        await interaction.followup.send(builder, ephemeral=True)
 
 
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
