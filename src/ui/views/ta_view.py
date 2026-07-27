@@ -9,10 +9,7 @@ from data_access.config_dao import remove_saturday_hours, get_config_data
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
-from ui.helpers.utils import fixed_width
 from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
-
-
 
 
 class RemoveStudentView(discord.ui.View):

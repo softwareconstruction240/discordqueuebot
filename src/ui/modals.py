@@ -1,6 +1,6 @@
 import discord
 from discord.utils import get
-from data_access.user_stats_dao import get_times_helped_today
+from data_access.queue_history_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id
@@ -61,7 +61,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             student_name
         )
 
-        times_helped = await get_times_helped_today(interaction.user.id)
+        times_helped = await get_times_helped_today(interaction.user.name)
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 

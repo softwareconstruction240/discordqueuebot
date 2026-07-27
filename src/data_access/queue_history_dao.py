@@ -132,6 +132,14 @@ async def get_students_not_finished() -> list[tuple[str, str, str]]:
             await cursor.execute("SELECT student_discord_name, TA_name, question FROM queue_history WHERE time_finished IS NULL")
             return [row for row in await cursor.fetchall()]
     
+async def get_times_helped_today(username: str) -> int:
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute("SELECT COUNT(*) FROM queue_history WHERE student_discord_name = %s AND DATE(time_finished) = DATE(NOW())", (username,))
+            row = await cursor.fetchone()
+            return int(row["COUNT(*)"]) if row else 0
 
 def _to_denver_time(time: datetime) -> datetime | None:
     if time is None:

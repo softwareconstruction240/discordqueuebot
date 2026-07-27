@@ -1,5 +1,5 @@
 import discord
-from data_access.user_stats_dao import get_times_helped_today
+from data_access.queue_history_dao import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import Messages
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
@@ -12,7 +12,7 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
         if not await can_join_queue(interaction):
             return
 
-        today_help_count = await get_times_helped_today(interaction.user.id)
+        today_help_count = await get_times_helped_today(interaction.user.display_name)
         await interaction.response.send_modal(HelpModal(today_help_count))
 
     @discord.ui.button(label="Passoff", style=discord.ButtonStyle.success, custom_id="passoff", emoji="💪")
