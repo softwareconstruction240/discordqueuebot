@@ -349,11 +349,13 @@ async def setup(interaction: discord.Interaction):
 @bot.tree.command(name="reset")
 async def reset(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
-    await takedown(interaction)
     try: 
+        await takedown(interaction)
         await interaction.followup.send("Reset Complete!")
     except discord.NotFound as e:
         print(e.with_traceback(None))
+    except PermissionError as e:
+        await interaction.followup.send(str(e))
 
     
 

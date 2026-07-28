@@ -24,10 +24,22 @@ async def setup_server(interaction: discord.Interaction):
     await update_queue_messages(interaction.client, interaction.guild)
 
 async def takedown(interaction: discord.Interaction):
-    """Deletes all roles and channels in the Help Queue Category"""
+    """Deletes all roles and channels in the Help Queue Category
+        Raises:
+            PermissionError if there are conflicts with the bot's role permissions and the channels/roles being deleted.
+        """
+    had_problems: bool = False
+
     for guild_role in interaction.guild.roles:
         if guild_role not in interaction.guild.me.roles:
-            await guild_role.delete()
+            try: 
+                await guild_role.delete()
+            except discord.Forbidden:
+                had_problems = True
+                print(f"Could not delete role {guild_role.name}. Role has higher access level than bot. Continuing with server reset...")
+            except discord.HTTPException:
+                had_problems = True
+                print(f"Could not delete role {guild_role.name} because Role belongs to another application. Continuing with server reset...")
     
     category_id = await get_id(Categories.HELP_QUEUE_CATEGORY, interaction.guild.id)
     category = get(interaction.guild.categories, id=category_id)
@@ -35,9 +47,16 @@ async def takedown(interaction: discord.Interaction):
     if category:
         for channel in category.channels:
             if channel.name != "general":
-                await channel.delete()
+                try: 
+                    await channel.delete()
+                except discord.Forbidden:
+                    had_problems = True
+                    print(f"Could not delete channel {channel.name}. Channel has higher access level than bot. Continuing with server reset...")
         
         await category.delete()
+    
+    if had_problems:
+        raise PermissionError("Could not delete all roles and channels. Check logs and delete some roles/channels manually")
 
     
 def _verify_permissions(interaction: discord.Interaction):
@@ -51,6 +70,7 @@ def _verify_permissions(interaction: discord.Interaction):
         ("Manage Roles", current_permissions.manage_roles),
         ("Connect", current_permissions.connect),
         ("Move Members", current_permissions.move_members),
+        ("Mute Members", current_permissions.mute_members),
         ("Speak", current_permissions.speak),
         ("Use Voice Activity", current_permissions.use_voice_activation),
         ("Use Slash Commands", current_permissions.use_application_commands)
@@ -62,39 +82,68 @@ def _verify_permissions(interaction: discord.Interaction):
         raise PermissionError(f"Missing required permissions: {', '.join(missing_permissions)}")
     
 
+async def _apply_channel_permissions(
+    guild: discord.Guild,
+    channel: discord.abc.GuildChannel,
+    everyone_permissions: discord.PermissionOverwrite,
+    other_permissions: discord.PermissionOverwrite
+):
+    for role in guild.roles:
+        try:
+            if role == guild.default_role:
+                continue
+            elif role in guild.me.roles:
+                await channel.set_permissions(guild.me, overwrite=other_permissions)
+            else:
+                await channel.set_permissions(role, overwrite=other_permissions)
+        except discord.Forbidden:
+            print(f"Could not set permissions for role {role.name}. Role has higher access level than bot. Continuing with server setup...")
+
+    # must be done last in case the permission interferes with the bot's ability to see or access the channel
+    try: 
+        await channel.set_permissions(guild.default_role, overwrite=everyone_permissions)
+    except discord.Forbidden:
+        print(f"Could not set permissions for role {guild.default_role.name}. Role has higher access level than bot. Continuing with server setup...")
+
+
 async def _roles_init(interaction: discord.Interaction):
     await __save_ta_role_id(interaction)
     await __save_professor_role_id(interaction)
 
 async def __save_ta_role_id(interaction: discord.Interaction):
     ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
-    for role in interaction.guild.roles:
-        if role.id == ta_role_id:
-            return
+    ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id) or get(interaction.guild.roles, name=Roles.TA_ROLE)
     
-    ta_role = get(interaction.guild.roles, name=Roles.TA_ROLE)
     if not ta_role:
-        ta_role: discord.Role = await interaction.guild.create_role(name=Roles.TA_ROLE, colour=discord.Colour.blue(), mentionable=True, permissions=discord.Permissions(mute_members=True))
+        ta_role = await interaction.guild.create_role(
+            name=Roles.TA_ROLE,
+            colour=discord.Colour.blue(),
+            mentionable=True,
+            permissions=discord.Permissions(mute_members=True)
+        )
+    else:
+        if not ta_role.permissions.mute_members:
+            perms = ta_role.permissions
+            perms.update(mute_members=True)
+            await ta_role.edit(permissions=perms)
+
     await set_id(Roles.TA_ROLE, interaction.guild.id, ta_role.id)
 
 async def __save_professor_role_id(interaction: discord.Interaction):
     professor_role_id: int = await get_id(Roles.PROFESSOR_ROLE, interaction.guild.id)
-    for role in interaction.guild.roles:
-        if role.id == professor_role_id:
-            return
-        
-    professor_role = get(interaction.guild.roles, name=Roles.PROFESSOR_ROLE)
+    professor_role: discord.Role = get(interaction.guild.roles, id=professor_role_id) or get(interaction.guild.roles, name=Roles.PROFESSOR_ROLE)
+    
     if not professor_role:
-        professor_role: discord.Role = await interaction.guild.create_role(name=Roles.PROFESSOR_ROLE, colour=discord.Colour.orange())
+        professor_role = await interaction.guild.create_role(
+            name=Roles.PROFESSOR_ROLE,
+            colour=discord.Colour.orange()
+        )
+
     await set_id(Roles.PROFESSOR_ROLE, interaction.guild.id, professor_role.id)
 
 async def _category_init(interaction: discord.Interaction):
     category_id: int = await get_id(Categories.HELP_QUEUE_CATEGORY, interaction.guild.id)
-    for category in interaction.guild.categories:
-        if category.id == category_id:
-            return
-        
-    help_category = get(interaction.guild.categories, name=Categories.HELP_QUEUE_CATEGORY)
+    help_category: discord.CategoryChannel = get(interaction.guild.categories, id=category_id) or get(interaction.guild.categories, name=Categories.HELP_QUEUE_CATEGORY)
     
     if help_category is None:
         help_category = await interaction.guild.create_category(Categories.HELP_QUEUE_CATEGORY)
@@ -102,41 +151,28 @@ async def _category_init(interaction: discord.Interaction):
     await set_id(Categories.HELP_QUEUE_CATEGORY, interaction.guild.id, help_category.id)
 
     bot_permissions = discord.PermissionOverwrite(move_members=True)
-    
     await help_category.set_permissions(interaction.guild.me, overwrite=bot_permissions)
 
 async def _help_queue_channel_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     help_queue_channel_id = await get_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id)
-    channels = category.channels
-    for channel in category.channels:
-        if channel.id == help_queue_channel_id:
-            return
+    help_queue_channel: discord.TextChannel = get(category.text_channels, id=help_queue_channel_id) or get(category.text_channels, name=Channels.HELP_CHANNEL_NAME)
     
-    help_queue_channel: discord.TextChannel = get(channels, name=Channels.HELP_CHANNEL_NAME)
     if not help_queue_channel:
         help_queue_channel = await category.create_text_channel(Channels.HELP_CHANNEL_NAME, position=0)
         await help_queue_channel.send(view=QueueView())
 
     await set_id(Channels.HELP_CHANNEL_NAME, interaction.guild.id, help_queue_channel.id)
-    everyone_permissions = discord.PermissionOverwrite(send_messages=False, create_public_threads=False)
 
+    everyone_permissions = discord.PermissionOverwrite(send_messages=False, create_public_threads=False)
     other_permissions = discord.PermissionOverwrite(send_messages=True)
-    for role in interaction.guild.roles:
-        if role == interaction.guild.default_role:
-            await help_queue_channel.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
-        elif role in interaction.guild.me.roles:
-            await help_queue_channel.set_permissions(interaction.guild.me, overwrite=other_permissions)
-        else:
-            await help_queue_channel.set_permissions(role, overwrite=other_permissions)
+
+    await _apply_channel_permissions(interaction.guild, help_queue_channel, everyone_permissions, other_permissions)
 
 
 async def _ta_bot_channel_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     ta_bot_channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
-    for channel in category.channels:
-        if channel.id == ta_bot_channel_id:
-            return
-        
-    ta_bot_channel: discord.TextChannel = get(category.channels, name=Channels.TA_TEXT_CHANNEL_NAME)
+    ta_bot_channel: discord.TextChannel = get(category.text_channels, id=ta_bot_channel_id) or get(category.text_channels, name=Channels.TA_TEXT_CHANNEL_NAME)
+    
     if not ta_bot_channel:
         ta_bot_channel = await category.create_text_channel(Channels.TA_TEXT_CHANNEL_NAME, position=1)
         await ta_bot_channel.send(view=TAView())
@@ -146,42 +182,21 @@ async def _ta_bot_channel_init(interaction: discord.Interaction, category: disco
     everyone_permissions = discord.PermissionOverwrite(view_channel=False)
     other_permissions = discord.PermissionOverwrite(view_channel=True)
 
-    for role in interaction.guild.roles:
-        if role == interaction.guild.default_role:
-            continue
-        elif role in interaction.guild.me.roles:
-            await ta_bot_channel.set_permissions(interaction.guild.me, overwrite=other_permissions)
-        else:
-            await ta_bot_channel.set_permissions(role, overwrite=other_permissions)
-    
-    # must be done last so that the bot can still see the channel
-    await ta_bot_channel.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
+    await _apply_channel_permissions(interaction.guild, ta_bot_channel, everyone_permissions, other_permissions)
 
 
 async def _online_tas_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     online_tas_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
-    for channel in category.voice_channels:
-        if channel.id == online_tas_id:
-            return
-        
-    online_tas: discord.VoiceChannel = get(category.voice_channels, name=Channels.TA_VOICE_CHANNEL_NAME)
+    online_tas: discord.VoiceChannel = get(category.voice_channels, id=online_tas_id) or get(category.voice_channels, name=Channels.TA_VOICE_CHANNEL_NAME)
+    
     if not online_tas:
         online_tas = await category.create_voice_channel(Channels.TA_VOICE_CHANNEL_NAME, position=2, user_limit=5)
     await set_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id, online_tas.id)
     
-    other_permissions = discord.PermissionOverwrite(connect=True, mute_members=True, move_members=True)
-    
-    for role in interaction.guild.roles:
-        if role == interaction.guild.default_role:
-            continue
-        elif role in interaction.guild.me.roles:
-            await online_tas.set_permissions(interaction.guild.me, overwrite=other_permissions)
-        else:
-            await online_tas.set_permissions(role, overwrite=other_permissions)
-
-    # must be done last so that the bot can still see the channel
     everyone_permissions = discord.PermissionOverwrite(connect=False)
-    await online_tas.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
+    other_permissions = discord.PermissionOverwrite(connect=True, mute_members=True, move_members=True)
+
+    await _apply_channel_permissions(interaction.guild, online_tas, everyone_permissions, other_permissions)
 
 
 async def _public_vcs_init(interaction: discord.Interaction, category: discord.CategoryChannel):
@@ -189,10 +204,8 @@ async def _public_vcs_init(interaction: discord.Interaction, category: discord.C
     public_vc_names.extend(Channels.BREAKOUT_NAMES)
     for name in public_vc_names:
         channel_id = await get_id(name, interaction.guild.id)
-        if get(category.voice_channels, id=channel_id):
-            continue
-            
-        voice_channel: discord.VoiceChannel = get(category.voice_channels, name=name)
+        voice_channel: discord.VoiceChannel = get(category.voice_channels, id=channel_id) or get(category.voice_channels, name=name)
+        
         if not voice_channel:
             voice_channel = await category.create_voice_channel(name, position=3+public_vc_names.index(name))
 
@@ -200,25 +213,13 @@ async def _public_vcs_init(interaction: discord.Interaction, category: discord.C
 
 async def _in_person_init(interaction: discord.Interaction, category: discord.CategoryChannel):
     in_person_vc_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
-    for channel in category.voice_channels:
-        if channel.id == in_person_vc_id:
-            return
-        
-    in_person_vc: discord.VoiceChannel = get(category.voice_channels, name=Channels.IN_PERSON_CHANNEL_NAME)
+    in_person_vc: discord.VoiceChannel = get(category.voice_channels, id=in_person_vc_id) or get(category.voice_channels, name=Channels.IN_PERSON_CHANNEL_NAME)
+    
     if not in_person_vc:
         in_person_vc = await category.create_voice_channel(Channels.IN_PERSON_CHANNEL_NAME, position=7)
     await set_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id, in_person_vc.id)
     
-    other_permissions = discord.PermissionOverwrite(connect=True)
-    
-    for role in interaction.guild.roles:
-        if role == interaction.guild.default_role:
-            continue
-        elif role in interaction.guild.me.roles:
-            await in_person_vc.set_permissions(interaction.guild.me, overwrite=other_permissions)
-        else:
-            await in_person_vc.set_permissions(role, overwrite=other_permissions)
-
-    # must be done last so that the bot can still see the channel
     everyone_permissions = discord.PermissionOverwrite(connect=False)
-    await in_person_vc.set_permissions(interaction.guild.default_role, overwrite=everyone_permissions)
+    other_permissions = discord.PermissionOverwrite(connect=True)
+
+    await _apply_channel_permissions(interaction.guild, in_person_vc, everyone_permissions, other_permissions)
