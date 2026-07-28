@@ -112,20 +112,6 @@ class _DBManager:
                     """
                 )
 
-                # Migration: add student_discord_id column if it doesn't exist (for existing databases)
-                await cursor.execute(
-                    """
-                    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE TABLE_SCHEMA = DATABASE()
-                    AND TABLE_NAME = 'queue_history'
-                    AND COLUMN_NAME = 'student_discord_id'
-                    """
-                )
-                if (await cursor.fetchone())[0] == 0:
-                    await cursor.execute(
-                        "ALTER TABLE queue_history ADD COLUMN student_discord_id BIGINT AFTER student_discord_name"
-                    )
-                    
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS server_ids (

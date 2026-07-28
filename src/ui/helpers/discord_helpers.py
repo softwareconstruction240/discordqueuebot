@@ -21,19 +21,15 @@ async def get_next_available_breakout(interaction: discord.Interaction):
     return None
 
 
-def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta_role_name: str = "TA") -> int:
+def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta_role: discord.Role) -> int:
     """Return the number of unique TA users in a specific voice channel."""
     if voice_channel is None:
-        return 0
-
-    ta_role = get(voice_channel.guild.roles, name=ta_role_name)
-    if ta_role is None:
         return 0
 
     return sum(1 for member in voice_channel.members if ta_role in getattr(member, "roles", []))
 
 
-def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
+async def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
     """Return the number of unique users with the TA role who are in any voice channel.
 
     Accepts either an `interaction` (and uses `interaction.guild`) or a `guild` directly.
@@ -42,17 +38,15 @@ def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, 
         return 0
 
     guild = guild or interaction.guild
-    ta_role = get(guild.roles, name=ta_role_name)
+    ta_role_id = await get_id(Roles.TA_ROLE, guild.id)
+    ta_role: discord.Role = get(guild.roles, id=ta_role_id)
     if ta_role is None:
         return 0
 
-    ta_ids = set()
+    tas_in_voice = 0
     for vc in guild.voice_channels:
-        for member in vc.members:
-            if ta_role in getattr(member, "roles", []):
-                ta_ids.add(member.id)
-
-    return len(ta_ids)
+        tas_in_voice += count_tas_in_voice_channel(vc, ta_role) 
+    return tas_in_voice
 
 async def safe_dm_user(client: discord.Client, user_id: int, message: str) -> None:
     try:
@@ -100,9 +94,7 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
 
         try:
             await ta.move_to(breakout_channel)
-            print("unmuting")
             await ta.edit(mute=False)
-            print("done unmuting")
         except Exception:
             await ta.send(f"Because you didn't join the Online TAs voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the student is waiting.")
 

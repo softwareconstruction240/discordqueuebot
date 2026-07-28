@@ -189,10 +189,9 @@ async def _public_vcs_init(interaction: discord.Interaction, category: discord.C
     public_vc_names.extend(Channels.BREAKOUT_NAMES)
     for name in public_vc_names:
         channel_id = await get_id(name, interaction.guild.id)
-        for vc in category.voice_channels:
-            if vc.id == channel_id:
-                continue
-        
+        if get(category.voice_channels, id=channel_id):
+            continue
+            
         voice_channel: discord.VoiceChannel = get(category.voice_channels, name=name)
         if not voice_channel:
             voice_channel = await category.create_voice_channel(name, position=3+public_vc_names.index(name))

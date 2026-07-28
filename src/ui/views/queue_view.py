@@ -50,7 +50,7 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
             )
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
         else:
-            num_tas = count_total_tas_in_voice(interaction=interaction)
+            num_tas = await count_total_tas_in_voice(interaction=interaction)
             try:
                 expected_wait = await calculate_expected_wait_time(
                     num_tas,

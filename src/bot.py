@@ -120,7 +120,7 @@ class Bot(discord.Client):
                 # wait one minute between plays
                 await asyncio.sleep(60)
             except Exception as e:
-                print("Error!" + e.with_traceback())
+                print("Error!" + e.with_traceback(asyncio.CancelledError))
                 await asyncio.sleep(60)
 
         # queue empty, disconnect
@@ -146,7 +146,7 @@ class Bot(discord.Client):
             return ""
 
         # compute expected wait time using recent queue history, available tas, and queue size
-        num_tas = count_total_tas_in_voice(guild=guild)
+        num_tas = await count_total_tas_in_voice(guild=guild)
 
         from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
         async with self.queue.lock:
