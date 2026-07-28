@@ -1,3 +1,4 @@
+from ui.helpers.constants import Roles
 from data_access.queue_history_dao import set_all_as_finished
 import discord
 from discord import app_commands
@@ -258,20 +259,23 @@ class Bot(discord.Client):
         """Removes any TAs not currently online from the help_map to avoid problems with TAs forgetting to click "finish helping student"."""
         while True:
             try:
-                await asyncio.sleep(60)
+                await asyncio.sleep(60*20)
                 
                 # get all online TAs
+                online_ta_names = []
                 for guild in self.guilds:
-                    online_ta_names = []
-                    ta_role = get(guild.roles, name="TA")
+                    ta_role_id = await get_id(Roles.TA_ROLE, guild.id)
+                    ta_role = get(guild.roles, id=ta_role_id)
                     for voice_channel in guild.voice_channels:
                         online_ta_names.extend([member.name for member in voice_channel.members if ta_role in getattr(member, "roles", [])])
-                    
+
+                print([name for name in online_ta_names]) 
                 # add offline TAs to the list of TAs to process
                 offline_tas = []
                 for name in self.help_map.keys():
                     if name not in online_ta_names:
                         offline_tas.append(name)
+                print([name for name in offline_tas]) 
                 
                 # remove all students from the help_map that were being helped by the offline TAs and update the db table
                 for ta in offline_tas:
