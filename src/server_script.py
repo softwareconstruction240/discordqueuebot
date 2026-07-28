@@ -11,9 +11,10 @@ async def setup_server(interaction: discord.Interaction):
     
     Raises:
         PermissionError if the necessary permissions are not granted."""
-    _verify_permissions(interaction)
-    await _roles_init(interaction)
+    
 
+    await _verify_permissions(interaction)
+    await _roles_init(interaction)
     await _category_init(interaction)
     category: discord.CategoryChannel = get(interaction.guild.categories, id=await get_id(Categories.HELP_QUEUE_CATEGORY, interaction.guild.id))
     await _help_queue_channel_init(interaction, category)
@@ -23,15 +24,17 @@ async def setup_server(interaction: discord.Interaction):
     await _in_person_init(interaction, category)
     await update_queue_messages(interaction.client, interaction.guild)
 
-async def takedown(interaction: discord.Interaction):
-    """Deletes all roles and channels in the Help Queue Category
-        Raises:
-            PermissionError if there are conflicts with the bot's role permissions and the channels/roles being deleted.
-        """
+async def takedown(interaction: discord.Interaction) -> None:
+    """Deletes all roles and channels in the Help Queue Category.
+    
+    Raises:
+        PermissionError if used by a non-administrator or if there are conflicts with the bot's role permissions and the channels/roles being deleted.
+    """
+    await _verify_permissions(interaction)
     had_problems: bool = False
 
     for guild_role in interaction.guild.roles:
-        if guild_role not in interaction.guild.me.roles:
+        if guild_role.id in [Roles.TA_ROLE, Roles.PROFESSOR_ROLE]:
             try: 
                 await guild_role.delete()
             except discord.Forbidden:
@@ -59,7 +62,15 @@ async def takedown(interaction: discord.Interaction):
         raise PermissionError("Could not delete all roles and channels. Check logs and delete some roles/channels manually")
 
     
-def _verify_permissions(interaction: discord.Interaction):
+async def _verify_permissions(interaction: discord.Interaction):
+    ta_role_id = await get_id(Roles.TA_ROLE, interaction.guild.id)
+    professor_role_id = await get_id(Roles.PROFESSOR_ROLE, interaction.guild.id)
+    ta_role = get(interaction.guild.roles, id=ta_role_id)
+    professor_role = get(interaction.guild.roles, id=professor_role_id)
+    
+    if not (interaction.user.guild_permissions.administrator or (ta_role and ta_role in interaction.user.roles) or (professor_role and professor_role in interaction.user.roles)):
+        raise PermissionError("Only administrators or TAs/Professors can use this command.")
+
     current_permissions: discord.Permissions = interaction.app_permissions
     expected_permissions = [
         ("Manage Channels", current_permissions.manage_channels),
@@ -94,16 +105,16 @@ async def _apply_channel_permissions(
                 continue
             elif role in guild.me.roles:
                 await channel.set_permissions(guild.me, overwrite=other_permissions)
-            else:
+            elif role.id in [Roles.TA_ROLE, Roles.PROFESSOR_ROLE]:
                 await channel.set_permissions(role, overwrite=other_permissions)
         except discord.Forbidden:
-            print(f"Could not set permissions for role {role.name}. Role has higher access level than bot. Continuing with server setup...")
+            print(f"Could not set permissions for role {role.name} due to server configuration. Continuing with server setup...")
 
     # must be done last in case the permission interferes with the bot's ability to see or access the channel
     try: 
         await channel.set_permissions(guild.default_role, overwrite=everyone_permissions)
     except discord.Forbidden:
-        print(f"Could not set permissions for role {guild.default_role.name}. Role has higher access level than bot. Continuing with server setup...")
+        print(f"Could not set permissions for role {guild.default_role.name} due to server configuration. Continuing with server setup...")
 
 
 async def _roles_init(interaction: discord.Interaction):
