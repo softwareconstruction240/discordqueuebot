@@ -269,13 +269,11 @@ class Bot(discord.Client):
                     for voice_channel in guild.voice_channels:
                         online_ta_names.extend([member.name for member in voice_channel.members if ta_role in getattr(member, "roles", [])])
 
-                print([name for name in online_ta_names]) 
                 # add offline TAs to the list of TAs to process
                 offline_tas = []
                 for name in self.help_map.keys():
                     if name not in online_ta_names:
                         offline_tas.append(name)
-                print([name for name in offline_tas]) 
                 
                 # remove all students from the help_map that were being helped by the offline TAs and update the db table
                 for ta in offline_tas:
