@@ -1,3 +1,4 @@
+from data_access.queue_history_dao import set_all_as_finished
 import discord
 from discord import app_commands
 from discord.utils import get
@@ -63,6 +64,7 @@ class Bot(discord.Client):
 
     async def close(self):
         self.queue.is_open = False
+        await set_all_as_finished()
         for guild in self.guilds:
             await update_queue_messages(self, guild)
         await db_manager.close()

@@ -133,6 +133,16 @@ async def get_students_not_finished() -> list[tuple[str, str, str]]:
             cursor: DictCursor
             await cursor.execute("SELECT student_discord_name, TA_name, question FROM queue_history WHERE time_finished IS NULL")
             return [row for row in await cursor.fetchall()]
+
+async def set_all_as_finished() -> None:
+    """ Sets all students not yet finished helped as having finished receiving help at the time of the funciton invocation.
+        Used on shutdown.
+    """
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor() as cursor:
+            cursor: aiomysql.Cursor
+            await cursor.execute("UPDATE queue_history SET time_finished = %s WHERE time_finished IS NULL", (datetime.now(UTC),))
     
 async def get_times_helped_today(user_id: int) -> int:
     async with db_manager.get_conn() as conn:
