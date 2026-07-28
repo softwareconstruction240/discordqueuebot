@@ -61,7 +61,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             student_name
         )
 
-        times_helped = await get_times_helped_today(interaction.user.name)
+        times_helped = await get_times_helped_today(interaction.user.id)
         mode = "In-person" if value == "p" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 

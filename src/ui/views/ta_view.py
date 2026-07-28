@@ -140,8 +140,8 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
 
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
-    student = await interaction.guild.fetch_member(entry.user_id)
-    new_entry = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    student: discord.User = await interaction.guild.fetch_member(entry.user_id)
+    new_entry = (await add_queue_history_item(entry, student, interaction.user.name), entry.user_id)
     if interaction.user.name in interaction.client.help_map:
         interaction.client.help_map[interaction.user.name].append(new_entry)
     else: 
@@ -150,7 +150,7 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
     await move_to_breakout(interaction, entry)
 
     await interaction.channel.send(
-        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
+        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=student.display_name), 
         delete_after=Messages.DEFAULT_TIMEOUT
     )
 
