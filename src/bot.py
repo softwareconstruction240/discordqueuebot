@@ -340,7 +340,6 @@ async def setup(interaction: discord.Interaction):
         await setup_server(interaction)
     except PermissionError as e:
         await interaction.followup.send(str(e))
-        raise e
     except Exception as e:
         await interaction.followup.send("Some kind of unknown error occured!")
         raise e
