@@ -11,7 +11,7 @@ from records import QueueEntry
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
 from data_access.user_stats_dao import daily_reset
-from data_access.queue_history_dao import set_time_finished
+from data_access.queue_history_dao import set_time_finished, get_students_not_finished
 from data_access.config_dao import auto_queue_scheduler
 from data_access.server_info_dao import get_id
 
@@ -38,7 +38,7 @@ class Bot(discord.Client):
         self.queue_status_message_id: int | None = None
         self.help_queue_count_message_id: int | None = None
         self._player_task: Optional[asyncio.Task] = None
-        self.help_map: map[str, tuple[int, int]] = {}
+        self.help_map: map[str, list[tuple[int, int]]] = {}
 
     async def setup_hook(self):
         """
@@ -174,8 +174,10 @@ class Bot(discord.Client):
         status = "OPEN" if self.queue.is_open else "CLOSED"
         queue_text = await self.queue.view()
         wait_text = await self._get_wait_time(guild)
+        students_being_helped: str = await self._get_active_students()
+        currently_helped = f"\n\n**Currently Being Helped:**\n{students_being_helped}" if students_being_helped else ""
 
-        return f"**Help Queue Status: {status}{wait_text}**\n{queue_text}"
+        return f"**Help Queue Status: {status}{wait_text}**\n{queue_text}{currently_helped}"
 
     async def _get_ta_status_message(self, guild: discord.Guild) -> discord.Message | None:
         ta_channel = await self._get_ta_channel(guild)
@@ -189,6 +191,7 @@ class Bot(discord.Client):
                 self.queue_status_message_id = None
 
         async for message in ta_channel.history(limit=50):
+            message: discord.Message
             if message.author == self.user and message.content.startswith("**Help Queue Status:"):
                 self.queue_status_message_id = message.id
                 return message
@@ -230,6 +233,15 @@ class Bot(discord.Client):
             return
 
         await student_status_message.edit(content=await self._build_student_status_message(guild))
+
+    async def _get_active_students(self) -> str | None:
+        students: list[tuple[str, str, str]] = await get_students_not_finished()
+        if len(students) == 0:
+            return None
+        str_builder = ""
+        for student in students:
+            str_builder += f"- {student["TA_name"]} is helping {student["student_discord_name"]} with {student["question"]}\n"
+        return str_builder
 
     async def _refresh_queue_status_messages(self) -> None:
         while not self.is_closed():

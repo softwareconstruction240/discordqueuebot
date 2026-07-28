@@ -119,6 +119,18 @@ async def get_queue_history() -> list:
             cursor: DictCursor
             await cursor.execute("SELECT * FROM queue_history")
             return [row for row in await cursor.fetchall()]
+
+
+async def get_students_not_finished() -> list[tuple[str, str, str]]:
+    """Gets all students without a time_finished in their queue history
+    Returns:
+        A list of dictionary tuples with keys 'student_discord_name', 'TA_name', and 'question'"""
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute("SELECT student_discord_name, TA_name, question FROM queue_history WHERE time_finished IS NULL")
+            return [row for row in await cursor.fetchall()]
     
 
 def _to_denver_time(time: datetime) -> datetime | None:

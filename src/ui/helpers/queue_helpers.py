@@ -1,4 +1,5 @@
 import discord
+import re
 
 async def already_in_queue(interaction: discord.Interaction)->bool:
     return await interaction.client.queue.is_in_queue(interaction.user.id)
@@ -23,3 +24,6 @@ async def can_join_queue(interaction: discord.Interaction) -> bool:
         return False
 
     return True
+
+def sanitize_details(details: str):
+    return re.sub(r"[\r\n]+", " ", details).strip()
