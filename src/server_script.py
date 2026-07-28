@@ -34,7 +34,7 @@ async def takedown(interaction: discord.Interaction) -> None:
     had_problems: bool = False
 
     for guild_role in interaction.guild.roles:
-        if guild_role.id in [Roles.TA_ROLE, Roles.PROFESSOR_ROLE]:
+        if guild_role.id in [await get_id(Roles.TA_ROLE, interaction.guild.id), await get_id(Roles.PROFESSOR_ROLE, interaction.guild.id)]:
             try: 
                 await guild_role.delete()
             except discord.Forbidden:
