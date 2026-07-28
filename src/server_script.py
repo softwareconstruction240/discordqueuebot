@@ -24,7 +24,7 @@ async def setup_server(interaction: discord.Interaction):
     await update_queue_messages(interaction.client, interaction.guild)
 
 async def takedown(interaction: discord.Interaction):
-    """Only used for testing. Deletes all roles and channels in the Help Queue Category"""
+    """Deletes all roles and channels in the Help Queue Category"""
     for guild_role in interaction.guild.roles:
         if guild_role not in interaction.guild.me.roles:
             await guild_role.delete()
@@ -74,7 +74,7 @@ async def __save_ta_role_id(interaction: discord.Interaction):
     
     ta_role = get(interaction.guild.roles, name=Roles.TA_ROLE)
     if not ta_role:
-        ta_role: discord.Role = await interaction.guild.create_role(name=Roles.TA_ROLE, colour=discord.Colour.blue(), mentionable=True)
+        ta_role: discord.Role = await interaction.guild.create_role(name=Roles.TA_ROLE, colour=discord.Colour.blue(), mentionable=True, permissions=discord.Permissions(mute_members=True))
     await set_id(Roles.TA_ROLE, interaction.guild.id, ta_role.id)
 
 async def __save_professor_role_id(interaction: discord.Interaction):
@@ -169,7 +169,7 @@ async def _online_tas_init(interaction: discord.Interaction, category: discord.C
         online_tas = await category.create_voice_channel(Channels.TA_VOICE_CHANNEL_NAME, position=2, user_limit=5)
     await set_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id, online_tas.id)
     
-    other_permissions = discord.PermissionOverwrite(connect=True)
+    other_permissions = discord.PermissionOverwrite(connect=True, mute_members=True, move_members=True)
     
     for role in interaction.guild.roles:
         if role == interaction.guild.default_role:

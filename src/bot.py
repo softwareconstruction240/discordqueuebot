@@ -7,7 +7,7 @@ from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
-from server_script import setup_server
+from server_script import setup_server, takedown
 from records import QueueEntry
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
@@ -258,7 +258,7 @@ class Bot(discord.Client):
         """Removes any TAs not currently online from the help_map to avoid problems with TAs forgetting to click "finish helping student"."""
         while True:
             try:
-                await asyncio.sleep(60*20)
+                await asyncio.sleep(60)
                 
                 # get all online TAs
                 for guild in self.guilds:
@@ -267,16 +267,18 @@ class Bot(discord.Client):
                     for voice_channel in guild.voice_channels:
                         online_ta_names.extend([member.name for member in voice_channel.members if ta_role in getattr(member, "roles", [])])
                     
-                # deduce which TAs should no longer be helping students
-                tas_to_remove = []
+                # add offline TAs to the list of TAs to process
+                offline_tas = []
                 for name in self.help_map.keys():
                     if name not in online_ta_names:
-                        tas_to_remove.append(name)
+                        offline_tas.append(name)
                 
-                # remove them from the help_map and update the db table
-                for ta in tas_to_remove:
-                    tableid, _ = self.help_map.pop(ta)
-                    await set_time_finished(tableid)
+                # remove all students from the help_map that were being helped by the offline TAs and update the db table
+                for ta in offline_tas:
+                    student_list: list = self.help_map.pop(ta)
+                    for _ in range(len(student_list)):
+                        tableid, _ = student_list.pop()
+                        await set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -344,14 +346,14 @@ async def setup(interaction: discord.Interaction):
         raise e
     await interaction.followup.send("Setup complete! Bot is ready to go!")
 
-# @bot.tree.command(name="reset")
-# async def reset(interaction: discord.Interaction):
-#     await interaction.response.defer(thinking=True, ephemeral=True)
-#     await takedown(interaction)
-#     try: 
-#         await interaction.followup.send("Reset Complete!")
-#     except discord.NotFound as e:
-#         print(e.with_traceback(None))
+@bot.tree.command(name="reset")
+async def reset(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    await takedown(interaction)
+    try: 
+        await interaction.followup.send("Reset Complete!")
+    except discord.NotFound as e:
+        print(e.with_traceback(None))
 
     
 

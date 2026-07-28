@@ -1,3 +1,4 @@
+from ui.helpers.constants import Roles
 import discord
 from discord.utils import get as get
 from typing import Optional
@@ -75,9 +76,11 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
     student: discord.Member = interaction.guild.get_member(entry.user_id)
     if student is None:
         student = await interaction.client.fetch_user(entry.user_id)
+
     ta: discord.Member = interaction.guild.get_member(interaction.user.id)
     if ta is None:
         ta: discord.Member = interaction.user
+
     if entry.in_person:
         try:
             channel_id = await get_id(Channels.IN_PERSON_CHANNEL_NAME, interaction.guild.id)
@@ -97,6 +100,9 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
 
         try:
             await ta.move_to(breakout_channel)
+            print("unmuting")
+            await ta.edit(mute=False)
+            print("done unmuting")
         except Exception:
             await ta.send(f"Because you didn't join the Online TAs voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the student is waiting.")
 
@@ -104,3 +110,21 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
             await student.move_to(breakout_channel)
         except Exception:
             await student.send(f"Because you didn't join the Waiting Room voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the TA is waiting.")
+
+async def return_to_online_ta_channel(interaction: discord.Interaction):
+    """Returns the user to the Online TAs channel and removes all others from it.
+    
+    Args:
+        interaction (discord.Interaction): The interaction of the TA who is returning to the Online TAs channel.
+    """
+    ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
+    ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
+    online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=await get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id))
+    ta_voice_status: discord.VoiceState = await interaction.user.fetch_voice()
+    for member in ta_voice_status.channel.members:
+        if ta_role in member.roles:
+            continue
+        else:
+            await member.move_to(None)
+    if interaction.user.voice.channel.id != online_ta_vc.id:
+        await interaction.user.move_to(online_ta_vc)

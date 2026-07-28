@@ -9,7 +9,7 @@ from data_access.config_dao import remove_saturday_hours, get_config_data
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
-from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
+from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages, return_to_online_ta_channel
 
 
 class RemoveStudentView(discord.ui.View):
@@ -193,32 +193,28 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=channel_id)
         
         ta_name = interaction.user.name
-        try: 
-            for entry in interaction.client.help_map[ta_name]:
-                await set_time_finished(entry[0])
-            interaction.client.help_map.pop(ta_name)
-        except (KeyError, TypeError):
-            msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
-            await msg.delete(delay=Messages.SHORT_TIMEOUT)
-            return
-
         try:
-            ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
-            voice_channel: discord.VoiceChannel = ta_voice_state.channel
-            ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
-            ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
+            try: 
+                # First, iterate through the help map and set the time finished for each entry.
+                for entry in interaction.client.help_map[ta_name]:
+                    await set_time_finished(entry[0])
+                interaction.client.help_map.pop(ta_name)
+            except (KeyError, TypeError):
+                # If the user is not in the help map, return them to the online ta channel
+                # and send an error message.
+                msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
+                await return_to_online_ta_channel(interaction)
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
+                return
 
-            for member in voice_channel.members:
-                if ta_role in member.roles:
-                    continue
-                else:
-                    await member.move_to(None)
-            await interaction.user.move_to(online_ta_vc)
+            # Now, return the ta to the online ta channel and mute them.
+            await return_to_online_ta_channel(interaction)
+            await interaction.user.edit(mute=True)
             await response.resource.delete()
         except discord.NotFound:
+            # If the user is not in the voice channel, send a message telling them to rejoin.
             msg = await interaction.followup.send(f"Rejoin the {online_ta_vc.mention} channel!", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
-
         finally:
             await update_queue_messages(interaction.client, interaction.guild)
 
