@@ -72,18 +72,7 @@ class _DBManager:
 
             async with conn.cursor() as cursor:
                 cursor: aiomysql.Cursor
-                await cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS user_stats (
-                        user_id BIGINT PRIMARY KEY,
-                        user_name VARCHAR(100),
-                        student_name VARCHAR(100),
-                        total_help INT DEFAULT 0,
-                        daily_help INT DEFAULT 0
-                    )
-                    """
-                )
-
+                
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS bot_incidents (
@@ -111,6 +100,7 @@ class _DBManager:
                     CREATE TABLE IF NOT EXISTS queue_history (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         student_discord_name VARCHAR(100) NOT NULL,
+                        student_discord_id BIGINT,
                         TA_name VARCHAR(100) NOT NULL,
                         question VARCHAR(300) NOT NULL,
                         enqueue_time DATETIME NOT NULL,
@@ -121,7 +111,7 @@ class _DBManager:
                         )
                     """
                 )
-                    
+
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS server_ids (
@@ -144,4 +134,4 @@ async def default_configuration(cursor: aiomysql.Cursor):
     if (await cursor.fetchone())[0] == 0:
         await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.QUEUE_SCHEDULE, f"{datetime(2000, 1, 1, hour=8, minute=0).isoformat()},{datetime(2000, 1, 1, hour=20, minute=0).isoformat()}"))
         await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.TA_MEETING, f"MON,{datetime(2000, 1, 1, hour = 7, minute = 0).isoformat()}"))
-        await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.DEVOTIONAL, f"TUE,{datetime(200, 1, 1, hour=11, minute=0)}"))
+        await cursor.execute("INSERT INTO config (name, value) VALUES (%s, %s)", (Config.DEVOTIONAL, f"TUE,{datetime(2000, 1, 1, hour=11, minute=0)}"))

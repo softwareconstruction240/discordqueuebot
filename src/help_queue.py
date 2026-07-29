@@ -1,6 +1,7 @@
 import asyncio
+from discord.utils import get
 from typing import Optional
-from data_access.user_stats_dao import get_times_helped_today
+from data_access.queue_history_dao import get_times_helped_today
 from records import QueueEntry
 
 class HelpQueue:
@@ -55,6 +56,7 @@ class HelpQueue:
         async with self.lock:
             if not self.entries:
                 return "Queue is empty."
+            
 
             out = ["Students in queue:\n"]
             for i, e in enumerate(self.entries, start=1):

@@ -1,6 +1,6 @@
 import discord
 from discord.utils import get
-from data_access.user_stats_dao import get_times_helped_today
+from data_access.queue_history_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id

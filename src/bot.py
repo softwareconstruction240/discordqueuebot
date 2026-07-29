@@ -1,3 +1,5 @@
+from ui.helpers.constants import Roles
+from data_access.queue_history_dao import set_all_as_finished
 import discord
 from discord import app_commands
 from discord.utils import get
@@ -6,11 +8,10 @@ from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
 from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
-from server_script import setup_server
+from server_script import setup_server, takedown
 from records import QueueEntry
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
-from data_access.user_stats_dao import daily_reset
 from data_access.queue_history_dao import set_time_finished, get_students_not_finished
 from data_access.config_dao import auto_queue_scheduler
 from data_access.server_info_dao import get_id
@@ -48,7 +49,6 @@ class Bot(discord.Client):
         await db_manager.connect()
         self.add_view(QueueView())
         self.add_view(TAView())
-        daily_reset.start()
         auto_queue_scheduler.start(self) 
         asyncio.create_task(self._refresh_queue_status_messages())    
         asyncio.create_task(self._refresh_help_map()) 
@@ -65,6 +65,7 @@ class Bot(discord.Client):
 
     async def close(self):
         self.queue.is_open = False
+        await set_all_as_finished()
         for guild in self.guilds:
             await update_queue_messages(self, guild)
         await db_manager.close()
@@ -120,7 +121,7 @@ class Bot(discord.Client):
                 # wait one minute between plays
                 await asyncio.sleep(60)
             except Exception as e:
-                print("Error!" + e.with_traceback())
+                print("Error!" + e.with_traceback(asyncio.CancelledError))
                 await asyncio.sleep(60)
 
         # queue empty, disconnect
@@ -146,7 +147,7 @@ class Bot(discord.Client):
             return ""
 
         # compute expected wait time using recent queue history, available tas, and queue size
-        num_tas = count_total_tas_in_voice(guild=guild)
+        num_tas = await count_total_tas_in_voice(guild=guild)
 
         from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
         async with self.queue.lock:
@@ -261,22 +262,25 @@ class Bot(discord.Client):
                 await asyncio.sleep(60*20)
                 
                 # get all online TAs
+                online_ta_names = []
                 for guild in self.guilds:
-                    online_ta_names = []
-                    ta_role = get(guild.roles, name="TA")
+                    ta_role_id = await get_id(Roles.TA_ROLE, guild.id)
+                    ta_role = get(guild.roles, id=ta_role_id)
                     for voice_channel in guild.voice_channels:
                         online_ta_names.extend([member.name for member in voice_channel.members if ta_role in getattr(member, "roles", [])])
-                    
-                # deduce which TAs should no longer be helping students
-                tas_to_remove = []
+
+                # add offline TAs to the list of TAs to process
+                offline_tas = []
                 for name in self.help_map.keys():
                     if name not in online_ta_names:
-                        tas_to_remove.append(name)
+                        offline_tas.append(name)
                 
-                # remove them from the help_map and update the db table
-                for ta in tas_to_remove:
-                    tableid, _ = self.help_map.pop(ta)
-                    await set_time_finished(tableid)
+                # remove all students from the help_map that were being helped by the offline TAs and update the db table
+                for ta in offline_tas:
+                    student_list: list = self.help_map.pop(ta)
+                    for _ in range(len(student_list)):
+                        tableid, _ = student_list.pop()
+                        await set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -337,21 +341,22 @@ async def setup(interaction: discord.Interaction):
     try:
         await setup_server(interaction)
     except PermissionError as e:
-        await interaction.followup.send("Missing required permissions! See logs!")
-        raise e
+        await interaction.followup.send(str(e))
     except Exception as e:
         await interaction.followup.send("Some kind of unknown error occured!")
         raise e
     await interaction.followup.send("Setup complete! Bot is ready to go!")
 
-# @bot.tree.command(name="reset")
-# async def reset(interaction: discord.Interaction):
-#     await interaction.response.defer(thinking=True, ephemeral=True)
-#     await takedown(interaction)
-#     try: 
-#         await interaction.followup.send("Reset Complete!")
-#     except discord.NotFound as e:
-#         print(e.with_traceback(None))
+@bot.tree.command(name="reset")
+async def reset(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try: 
+        await takedown(interaction)
+        await interaction.followup.send("Reset Complete!")
+    except discord.NotFound as e:
+        print(e.with_traceback(None))
+    except PermissionError as e:
+        await interaction.followup.send(str(e))
 
     
 

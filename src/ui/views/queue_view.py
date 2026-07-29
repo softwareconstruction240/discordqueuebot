@@ -1,5 +1,5 @@
 import discord
-from data_access.user_stats_dao import get_times_helped_today
+from data_access.queue_history_dao import get_times_helped_today
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import Messages
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
@@ -50,7 +50,7 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
             )
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
         else:
-            num_tas = count_total_tas_in_voice(interaction=interaction)
+            num_tas = await count_total_tas_in_voice(interaction=interaction)
             try:
                 expected_wait = await calculate_expected_wait_time(
                     num_tas,

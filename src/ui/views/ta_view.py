@@ -4,16 +4,12 @@ import discord
 from discord.utils import get
 from data_access.queue_history_dao import set_time_finished, add_queue_history_item, get_queue_history_as_csv
 from data_access.bot_incidents_dao import get_last_incident_info
-from data_access.user_stats_dao import increment_help, get_student_info
 from data_access.server_info_dao import get_id
 from data_access.config_dao import remove_saturday_hours, get_config_data
 from records import QueueEntry
 from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
-from ui.helpers.utils import fixed_width
-from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages
-
-
+from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages, return_to_online_ta_channel
 
 
 class RemoveStudentView(discord.ui.View):
@@ -138,17 +134,14 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
         await msg.delete(delay=Messages.SHORT_TIMEOUT)
         return 
     
-    if not entry.is_passoff:
-        await increment_help(entry.user_id, entry.username, entry.student_name)
-
     await dequeue_student(interaction, front_before, entry)
 
     await msg.resource.delete()
 
 
 async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
-    student = await interaction.guild.fetch_member(entry.user_id)
-    new_entry = (await add_queue_history_item(entry, student.display_name, interaction.user.name), entry.user_id)
+    student: discord.User = await interaction.guild.fetch_member(entry.user_id)
+    new_entry = (await add_queue_history_item(entry, student, interaction.user.name), entry.user_id)
     if interaction.user.name in interaction.client.help_map:
         interaction.client.help_map[interaction.user.name].append(new_entry)
     else: 
@@ -157,7 +150,7 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
     await move_to_breakout(interaction, entry)
 
     await interaction.channel.send(
-        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=entry.username), 
+        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=student.display_name), 
         delete_after=Messages.DEFAULT_TIMEOUT
     )
 
@@ -199,33 +192,32 @@ class TAQueueControls3(discord.ui.ActionRow[discord.ui.LayoutView]):
         channel_id = await get_id(Channels.TA_VOICE_CHANNEL_NAME, interaction.guild.id)
         online_ta_vc: discord.VoiceChannel = get(interaction.guild.voice_channels, id=channel_id)
         
+        ta_name = interaction.user.name
         try:
-            ta_voice_state: discord.VoiceState = await interaction.user.fetch_voice()
-            voice_channel: discord.VoiceChannel = ta_voice_state.channel
-            ta_role_id: int = await get_id(Roles.TA_ROLE, interaction.guild.id)
-            ta_role: discord.Role = get(interaction.guild.roles, id=ta_role_id)
-            for member in voice_channel.members:
-                if ta_role in member.roles:
-                    continue
-                else:
-                    await member.move_to(None)
-            await interaction.user.move_to(online_ta_vc)
+            try: 
+                # First, iterate through the help map and set the time finished for each entry.
+                for entry in interaction.client.help_map[ta_name]:
+                    await set_time_finished(entry[0])
+                interaction.client.help_map.pop(ta_name)
+            except (KeyError, TypeError):
+                # If the user is not in the help map, return them to the online ta channel
+                # and send an error message.
+                msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
+                await return_to_online_ta_channel(interaction)
+                await msg.delete(delay=Messages.SHORT_TIMEOUT)
+                return
+
+            # Now, return the ta to the online ta channel and mute them.
+            await return_to_online_ta_channel(interaction)
+            await interaction.user.edit(mute=True)
+            await response.resource.delete()
         except discord.NotFound:
+            # If the user is not in the voice channel, send a message telling them to rejoin.
             msg = await interaction.followup.send(f"Rejoin the {online_ta_vc.mention} channel!", ephemeral=True, wait=True)
             await msg.delete(delay=Messages.SHORT_TIMEOUT)
-        
-        ta_name = interaction.user.name
-        try: 
-            for entry in interaction.client.help_map[ta_name]:
-                await set_time_finished(entry[0])
-            interaction.client.help_map.pop(ta_name)
-                
-        except (KeyError, TypeError):
-            msg = await interaction.followup.send("Error: Could not find the student you were helping.", ephemeral=True, wait=True)
-            await msg.delete(delay=Messages.SHORT_TIMEOUT)
-            return
-        await response.resource.delete()
-        await update_queue_messages(interaction.client, interaction.guild)
+        finally:
+            await update_queue_messages(interaction.client, interaction.guild)
+
 
 class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
     view: "TAView"
@@ -270,7 +262,7 @@ class TAQueueManagement(discord.ui.ActionRow[discord.ui.LayoutView]):
             msg = await interaction.followup.send(
                 "Queue is empty.", ephemeral=True, wait=True
             )
-            msg.delete(delay=Messages.SHORT_TIMEOUT)
+            await msg.delete(delay=Messages.SHORT_TIMEOUT)
             return
 
         view = RemoveStudentView(entries)
@@ -293,19 +285,6 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         msg = await interaction.followup.send(message, ephemeral=True, wait=True)
         await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
-
-    @discord.ui.button(label="Student Info", style=discord.ButtonStyle.secondary, custom_id="student_info", emoji="📝")
-    async def student_info(self, interaction: discord.Interaction, button):
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        headers, rows = await get_student_info()
-        width = Messages.STUDENT_INFO_WIDTH
-        def row_to_line(items):
-            return "| ".join(fixed_width(str(x), width) for x in items)
-
-        divider = "-" * (width * len(headers) + 3 * (len(headers)-1))
-        body = "\n".join(row_to_line(r) for r in rows)
-        builder = f"```Student Info:\n{row_to_line(headers)}\n{divider}\n{body}```"
-        await interaction.followup.send(builder, ephemeral=True)
 
 
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")

@@ -9,7 +9,7 @@ from records import QueueEntry
 from zoneinfo import ZoneInfo
 
 
-async def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: str) -> int:
+async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.User, ta: str) -> int:
     """Adds information about the student's help queue entry to the database and returns its associated key to be used for later indexing.
     
     Returns: 
@@ -23,6 +23,7 @@ async def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: 
             await cursor.execute(
                 """INSERT INTO queue_history (
                     student_discord_name,
+                    student_discord_id,
                     ta_name,
                     question,
                     enqueue_time,
@@ -30,8 +31,9 @@ async def add_queue_history_item(queue_entry: QueueEntry, student_username, ta: 
                     is_passoff,
                     in_person
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (student_username, 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (student_user.display_name,
+                    student_user.id,
                     ta, 
                     queue_entry.details, 
                     queue_entry.timestamp, 
@@ -131,7 +133,25 @@ async def get_students_not_finished() -> list[tuple[str, str, str]]:
             cursor: DictCursor
             await cursor.execute("SELECT student_discord_name, TA_name, question FROM queue_history WHERE time_finished IS NULL")
             return [row for row in await cursor.fetchall()]
+
+async def set_all_as_finished() -> None:
+    """ Sets all students not yet finished helped as having finished receiving help at the time of the funciton invocation.
+        Used on shutdown.
+    """
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor() as cursor:
+            cursor: aiomysql.Cursor
+            await cursor.execute("UPDATE queue_history SET time_finished = %s WHERE time_finished IS NULL", (datetime.now(UTC),))
     
+async def get_times_helped_today(user_id: int) -> int:
+    async with db_manager.get_conn() as conn:
+        conn: aiomysql.Connection
+        async with conn.cursor(DictCursor) as cursor:
+            cursor: DictCursor
+            await cursor.execute("SELECT COUNT(*) FROM queue_history WHERE student_discord_id = %s AND DATE(time_finished) = DATE(NOW()) AND is_passoff = 0", (user_id,))
+            row = await cursor.fetchone()
+            return int(row["COUNT(*)"]) if row else 0
 
 def _to_denver_time(time: datetime) -> datetime | None:
     if time is None:
