@@ -8,12 +8,25 @@ from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.discord_helpers import update_queue_messages, notify_next_if_changed
 from ui.helpers.queue_helpers import sanitize_details
 
+from records import format_phase
+
 class HelpModal(discord.ui.Modal, title="Request Help"):
+
 
     name = discord.ui.TextInput(
         label="Your name",
         placeholder="John D. Fortnite",
         max_length=100
+    )
+
+    display = discord.ui.TextDisplay(   
+        content="Loading data..."
+    )
+
+    phase = discord.ui.TextInput(
+        label="Phase",
+        placeholder="0-6, E, G, or ?",
+        max_length=1
     )
 
     question = discord.ui.TextInput(
@@ -30,17 +43,29 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
     def __init__(self, times_helped: int):
         super().__init__()
-        self.add_item(discord.ui.TextDisplay(
+        display_text = (
+            "Phase # or: E (Exam), G (GitHub Repo), ? (Misc)\n"
             f"You've been helped {times_helped} time{'s' if times_helped != 1 else ''} today."
-        ))
+        )
         if times_helped >= 2:
-            self.add_item(discord.ui.TextDisplay(
-                "Warning: the max times you can be helped in a day is 3, "
+            display_text += (
+                "\nWarning: the max times you can be helped in a day is 3, "
                 "but TAs may still help you if they think it is necessary."
-            ))
+            )
+        self.display.content = display_text
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
+        phase_val = self.phase.value.strip().upper()
+        if phase_val not in ("0", "1", "2", "3", "4", "5", "6", "E", "G", "?"):
+            msg = await interaction.followup.send(
+                "_**Could not join queue**_. Please enter a valid phase: 0-6, E (Exam), G (Github Repo), or ? (Misc)",
+                wait=True,
+                ephemeral=True
+            )
+            await msg.delete(delay=20)
+            return
+
         value = self.in_person.value.lower()
         if value not in ("o", "p"):
             msg = await interaction.followup.send(
@@ -58,7 +83,8 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             sanitize_details(self.question.value),
             False,
             value == "p",
-            student_name
+            student_name,
+            phase_val
         )
 
         times_helped = await get_times_helped_today(interaction.user.id)
@@ -76,8 +102,9 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
 
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
+        formatted_p = format_phase(phase_val)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {sanitize_details(self.question.value)} "
+            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {formatted_p} - {sanitize_details(self.question.value)} "
             f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
             delete_after=30
         )
@@ -91,11 +118,21 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         placeholder="John D. Fortnite",
         max_length=100
     )
-    phase = discord.ui.TextInput(label="Which phase?", max_length=50)
+    phase = discord.ui.TextInput(label="Which phase? (5 or 6)", placeholder="5 or 6", max_length=1)
     in_person = discord.ui.TextInput(label="Online or In-Person? (o/p)", max_length=1)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
+        phase_val = self.phase.value.strip().upper()
+        if phase_val not in ("5", "6"):
+            msg = await interaction.followup.send(
+                "_**Could not join queue**_. Passoffs are only allowed for phase 5 or 6. Please enter 5 or 6.",
+                ephemeral=True,
+                wait=True
+            )
+            await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
+            return
+
         value = self.in_person.value.lower()
         if value not in ("o", "p"):
             msg = await interaction.followup.send(
@@ -110,10 +147,11 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
         await interaction.client.queue_handler(
             interaction,
-            sanitize_details(self.phase.value),
+            "Passoff",
             True,
             self.in_person.value.lower() == "p",
-            student_name
+            student_name,
+            phase_val
         )
 
         mode = "In-person" if value == "p" else "Online"
@@ -129,8 +167,9 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
 
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
+        formatted_p = format_phase(phase_val)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {sanitize_details(self.phase.value)}",
+            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {formatted_p}",
             delete_after=30
         )
         await msg.delete(delay=60)

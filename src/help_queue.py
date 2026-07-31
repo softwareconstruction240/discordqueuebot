@@ -2,7 +2,7 @@ import asyncio
 from discord.utils import get
 from typing import Optional
 from data_access.queue_history_dao import get_times_helped_today
-from records import QueueEntry
+from records import QueueEntry, format_phase
 
 class HelpQueue:
     def __init__(self):
@@ -66,8 +66,10 @@ class HelpQueue:
                 display_name = e.username
                 if e.student_name:
                     display_name = f"{e.username} ({e.student_name})"
+                phase_str = format_phase(getattr(e, "phase", "?"))
+                details_str = f" - {e.details}" if e.details and e.details != "Passoff" else ""
                 out.append(
-                    f"{i}. {display_name} - {p_tag} - {o_tag} - {e.details} "
+                    f"{i}. {display_name} - {p_tag} - {o_tag} - {phase_str}{details_str} "
                     f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)"
                 )
 

@@ -25,17 +25,19 @@ async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.
                     student_discord_name,
                     student_discord_id,
                     ta_name,
+                    phase,
                     question,
                     enqueue_time,
                     dequeue_time,
                     is_passoff,
                     in_person
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (student_user.display_name,
                     student_user.id,
                     ta, 
-                    queue_entry.details, 
+                    queue_entry.phase,
+                    queue_entry.details,
                     queue_entry.timestamp, 
                     dequeue_time, 
                     queue_entry.is_passoff, 
@@ -84,6 +86,7 @@ async def get_queue_history_as_csv() -> discord.File:
                 items.append(row["id"])
                 items.append(row["student_discord_name"])
                 items.append(row["TA_name"])
+                items.append(row["phase"])
                 items.append(row["question"])
 
                 items.append(_to_denver_time(row["enqueue_time"]))
@@ -123,15 +126,15 @@ async def get_queue_history() -> list:
             return [row for row in await cursor.fetchall()]
 
 
-async def get_students_not_finished() -> list[tuple[str, str, str]]:
+async def get_students_not_finished() -> list[dict]:
     """Gets all students without a time_finished in their queue history
     Returns:
-        A list of dictionary tuples with keys 'student_discord_name', 'TA_name', and 'question'"""
+        A list of dictionaries with keys 'student_discord_name', 'TA_name', 'question', and 'phase'"""
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
             cursor: DictCursor
-            await cursor.execute("SELECT student_discord_name, TA_name, question FROM queue_history WHERE time_finished IS NULL")
+            await cursor.execute("SELECT student_discord_name, TA_name, question, phase FROM queue_history WHERE time_finished IS NULL")
             return [row for row in await cursor.fetchall()]
 
 async def set_all_as_finished() -> None:

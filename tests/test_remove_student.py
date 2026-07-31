@@ -16,7 +16,8 @@ from src.help_queue import HelpQueue
 # ==========================================================
 
 def make_entry(user_id: int, username: str = "", student_name: str = "",
-               details: str = "", is_passoff: bool = False, in_person: bool = False):
+               details: str = "", is_passoff: bool = False, in_person: bool = False,
+               phase: str = "?"):
     return QueueEntry(
         user_id=user_id,
         username=username or f"user_{user_id}",
@@ -25,6 +26,7 @@ def make_entry(user_id: int, username: str = "", student_name: str = "",
         is_passoff=is_passoff,
         timestamp=datetime.now(UTC),
         in_person=in_person,
+        phase=phase,
     )
 
 
