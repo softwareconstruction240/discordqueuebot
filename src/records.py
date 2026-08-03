@@ -19,6 +19,6 @@ def format_phase(phase: str) -> str:
     elif p == "E":
         return "Exam"
     elif p == "G":
-        return "Github Repo"
+        return "GitHub Repo"
     else:
         return "Misc"

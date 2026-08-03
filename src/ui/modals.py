@@ -59,7 +59,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         phase_val = self.phase.value.strip().upper()
         if phase_val not in ("0", "1", "2", "3", "4", "5", "6", "E", "G", "?"):
             msg = await interaction.followup.send(
-                "_**Could not join queue**_. Please enter a valid phase: 0-6, E (Exam), G (Github Repo), or ? (Misc)",
+                "_**Could not join queue**_. Please enter a valid phase: 0-6, E (Exam), G (GitHub Repo), or ? (Misc)",
                 wait=True,
                 ephemeral=True
             )

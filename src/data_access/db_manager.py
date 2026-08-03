@@ -102,7 +102,7 @@ class _DBManager:
                         student_discord_name VARCHAR(100) NOT NULL,
                         student_discord_id BIGINT,
                         TA_name VARCHAR(100) NOT NULL,
-                        phase VARCHAR(1) NOT NULL,
+                        phase VARCHAR(1) DEFAULT '?',
                         question VARCHAR(300) NOT NULL,
                         enqueue_time DATETIME NOT NULL,
                         dequeue_time DATETIME NOT NULL,
