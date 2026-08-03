@@ -6,7 +6,7 @@ from data_access.queue_history_dao import set_time_finished, add_queue_history_i
 from data_access.bot_incidents_dao import get_last_incident_info
 from data_access.server_info_dao import get_id
 from data_access.config_dao import remove_saturday_hours, get_config_data
-from records import QueueEntry
+from records import QueueEntry, format_phase
 from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages, return_to_online_ta_channel
@@ -28,7 +28,9 @@ class RemoveStudentView(discord.ui.View):
             label = entry.student_name if entry.student_name else entry.username
             if len(label) > 100:
                 label = label[:97] + "..."
-            desc = entry.details if entry.details else ""
+            phase_str = format_phase(getattr(entry, "phase", "?"))
+            details_str = f" - {entry.details}" if entry.details and entry.details != "Passoff" else ""
+            desc = f"{phase_str}{details_str}"
             if len(desc) > 100:
                 desc = desc[:93] + "..."  # 96 chars + "#N " prefix ≤ 100
 

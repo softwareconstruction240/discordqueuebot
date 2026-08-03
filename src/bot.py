@@ -9,7 +9,7 @@ from ui.views.ta_view import TAView
 from ui.helpers.constants import Channels
 from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
 from server_script import setup_server, takedown
-from records import QueueEntry
+from records import QueueEntry, format_phase
 from datetime import datetime, UTC
 from data_access.db_manager import db_manager
 from data_access.queue_history_dao import set_time_finished, get_students_not_finished
@@ -236,12 +236,14 @@ class Bot(discord.Client):
         await student_status_message.edit(content=await self._build_student_status_message(guild))
 
     async def _get_active_students(self) -> str | None:
-        students: list[tuple[str, str, str]] = await get_students_not_finished()
+        students: list[dict] = await get_students_not_finished()
         if len(students) == 0:
             return None
         str_builder = ""
         for student in students:
-            str_builder += f"- {student["TA_name"]} is helping {student["student_discord_name"]} with {student["question"]}\n"
+            phase_str = format_phase(student.get("phase", "?"))
+            question_str = f" - {student['question']}" if student.get('question') else ""
+            str_builder += f"- {student['TA_name']} is helping {student['student_discord_name']} ({phase_str}{question_str})\n"
         return str_builder
 
     async def _refresh_queue_status_messages(self) -> None:
@@ -288,7 +290,7 @@ class Bot(discord.Client):
 
 
 
-    async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str):
+    async def queue_handler(self, interaction: discord.Interaction, question, is_passoff, in_person, student_name: str, phase: str = "?"):
         """
         Processes a new request to join the help queue, creates a QueueEntry, 
         updates the UI, and triggers the audio notification system if needed.
@@ -299,6 +301,7 @@ class Bot(discord.Client):
             is_passoff (bool): Indicates if this is a required pass-off assignment.
             in_person (bool): Indicates if the student is physically present.
             student_name (str): The student's actual name.
+            phase (str): Single character phase identifier.
         """
         entry = QueueEntry(
             user_id=interaction.user.id,
@@ -307,7 +310,8 @@ class Bot(discord.Client):
             details=question,
             is_passoff=is_passoff,
             timestamp=datetime.now(UTC),
-            in_person=in_person
+            in_person=in_person,
+            phase=phase
         )
 
         await self.queue.add(entry)

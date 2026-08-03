@@ -10,3 +10,15 @@ class QueueEntry:
     is_passoff: bool
     timestamp: datetime
     in_person: bool
+    phase: str
+
+def format_phase(phase: str) -> str:
+    p = phase.strip().upper() if phase else "?"
+    if p in ("0", "1", "2", "3", "4", "5", "6"):
+        return f"Phase {p}"
+    elif p == "E":
+        return "Exam"
+    elif p == "G":
+        return "GitHub Repo"
+    else:
+        return "Misc"
