@@ -5,6 +5,7 @@ A help queue bot for the CS 240 Discord server.
 
 - Python 3.11+
 - `ffmpeg` installed and available on your PATH
+- Local/Remote MySQL Server (setup not covered in this tutorial)
 
 ## Python / VS Code setup
 
@@ -36,11 +37,15 @@ python -m pip install --upgrade pip
 pip install -r ./src/resources/requirements.txt
 ```
 
-#### 5. Confirm `ffmpeg` is installed:
+#### 5. Install ffmpeg (if you care about audio - the bot will still run):
 
-Run the following command in the VSCode terminal:
+Windows: Press Win + R, type cmd, and run `winget install ffmpeg`.
 
-```powershell
+Mac/Linux: Download a build from the [FFmpeg Official Website](https://ffmpeg.org/download.html).
+
+#### 6. Confirm ffmpeg install
+
+```terminal
 ffmpeg -version
 ```
 
@@ -91,7 +96,7 @@ python bot.py
 
 #### 4. Discord server setup
    Run the `/setup` command in any discord server channel. Assign roles to relevant server members
->[!NOTE] The Professor/TA Roles don't have administrator permissions by default, as the bot cannot grant permissisions higher than its own level of access, so you might want to manually go in and mark the Professor Role as Administrator.
+>[!NOTE] The Professor/TA Roles don't have administrator permissions by default, as the bot cannot grant permissions higher than its own level of access, so you might want to manually go in and mark the Professor Role as Administrator.
 
 `/setup` should be the only slash command you ever need use, but the following slash commands are also provided in case the buttons are deleted:
    - `/queue`: students' help queue buttons in help-queue-chat
@@ -105,7 +110,7 @@ The bot is now ready to use! When you are available, be sure to join the "Online
 
 ## Notes
 
-- If no MP3 files are present or you don't have fmpegg installed, it will still run but will not play audio.
+- If no MP3 files are present or you don't have FFMpeg installed, it will still run but will not play audio.
 - You can customize channel names and messages in `ui/helpers/constants.py`.
 - To run tests, navigate to the root directory and run the following in the terminal: 
 ```powershell
