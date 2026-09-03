@@ -75,6 +75,7 @@ async def get_queue_history_as_csv() -> discord.File:
                 """
             )
             header = [row["COLUMN_NAME"] for row in await cursor.fetchall()]
+            header.remove("student_discord_id")
             header.append("time_in_queue")
             header.append("time_helped")
 
