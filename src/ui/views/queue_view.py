@@ -1,5 +1,6 @@
 import discord
 from data_access.queue_history_dao import get_times_helped_today
+from data_access.students_dao import get_registered_name
 from ui.modals import HelpModal, PassoffModal, BotIssueModal
 from ui.helpers.constants import Messages
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
@@ -13,14 +14,16 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
             return
 
         today_help_count = await get_times_helped_today(interaction.user.id)
-        await interaction.response.send_modal(HelpModal(today_help_count))
+        registered_name = await get_registered_name(interaction.user.id)
+        await interaction.response.send_modal(HelpModal(today_help_count, default_name=registered_name))
 
     @discord.ui.button(label="Passoff", style=discord.ButtonStyle.success, custom_id="passoff", emoji="💪")
     async def passoff_btn(self, interaction: discord.Interaction, button):
         if not await can_join_queue(interaction):
             return
 
-        await interaction.response.send_modal(PassoffModal())
+        registered_name = await get_registered_name(interaction.user.id)
+        await interaction.response.send_modal(PassoffModal(default_name=registered_name))
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.danger, custom_id="leave_queue", emoji="🚪")
     async def leave_btn(self, interaction: discord.Interaction, button):

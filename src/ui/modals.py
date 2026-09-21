@@ -4,6 +4,7 @@ from data_access.queue_history_dao import get_times_helped_today
 from data_access.bot_incidents_dao import record_bot_issue
 from data_access.config_dao import set_queue_times, set_ta_meeting, set_devotional_hours, set_saturday_hours
 from data_access.server_info_dao import get_id
+from data_access.students_dao import set_registered_name
 from ui.helpers.constants import Channels, Messages, Roles
 from ui.helpers.discord_helpers import update_queue_messages, notify_next_if_changed
 from ui.helpers.queue_helpers import sanitize_details
@@ -41,8 +42,10 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         max_length=1
     )
 
-    def __init__(self, times_helped: int):
+    def __init__(self, times_helped: int, default_name: str | None = None):
         super().__init__()
+        if default_name:
+            self.name.default = default_name
         display_text = (
             "Phase # or: E (Exam), G (GitHub Repo), ? (Misc)\n"
             f"You've been helped {times_helped} time{'s' if times_helped != 1 else ''} today."
@@ -77,6 +80,11 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
             return
         
         student_name = self.name.value.strip()
+        await set_registered_name(interaction.user.id, student_name)
+        try:
+            await interaction.user.edit(nick=student_name)
+        except Exception as e:
+            print(f"Could not update nickname for {interaction.user.display_name}: {e}")
 
         await interaction.client.queue_handler(
             interaction,
@@ -121,6 +129,11 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
     phase = discord.ui.TextInput(label="Which phase? (5 or 6)", placeholder="5 or 6", max_length=1)
     in_person = discord.ui.TextInput(label="Online or In-Person? (o/p)", max_length=1)
 
+    def __init__(self, default_name: str | None = None):
+        super().__init__()
+        if default_name:
+            self.name.default = default_name
+
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
         phase_val = self.phase.value.strip().upper()
@@ -144,6 +157,11 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
             return
         
         student_name = self.name.value.strip()
+        await set_registered_name(interaction.user.id, student_name)
+        try:
+            await interaction.user.edit(nick=student_name)
+        except Exception as e:
+            print(f"Could not update nickname for {interaction.user.display_name}: {e}")
 
         await interaction.client.queue_handler(
             interaction,

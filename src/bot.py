@@ -243,7 +243,7 @@ class Bot(discord.Client):
         for student in students:
             phase_str = format_phase(student.get("phase", "?"))
             question_str = f" - {student['question']}" if student.get('question') else ""
-            str_builder += f"- {student['TA_name']} is helping {student['student_discord_name']} ({phase_str}{question_str})\n"
+            str_builder += f"- {student['TA_name']} is helping {student['student_name']} ({phase_str}{question_str})\n"
         return str_builder
 
     async def _refresh_queue_status_messages(self) -> None:
