@@ -112,7 +112,7 @@ class HelpModal(discord.ui.Modal, title="Request Help"):
         ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
         formatted_p = format_phase(phase_val)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has joined the help queue - {mode} - {formatted_p} - {sanitize_details(self.question.value)} "
+            f"{student_name} ({interaction.user.display_name}) has joined the help queue - {mode} - {formatted_p} - {sanitize_details(self.question.value)} "
             f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
             delete_after=30
         )
@@ -187,7 +187,7 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
         formatted_p = format_phase(phase_val)
         await ta_channel.send(
-            f"{interaction.user.display_name} ({student_name}) has requested a passoff - {mode} - {formatted_p}",
+            f"{student_name} ({interaction.user.display_name}) has requested a passoff - {mode} - {formatted_p}",
             delete_after=30
         )
         await msg.delete(delay=60)

@@ -6,6 +6,7 @@ from data_access.queue_history_dao import set_time_finished, add_queue_history_i
 from data_access.bot_incidents_dao import get_last_incident_info
 from data_access.server_info_dao import get_id
 from data_access.config_dao import remove_saturday_hours, get_config_data
+from data_access.students_dao import get_registered_name
 from records import QueueEntry, format_phase
 from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
@@ -152,7 +153,7 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
     await move_to_breakout(interaction, entry)
 
     await interaction.channel.send(
-        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=student.display_name), 
+        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=get_registered_name(student.id)), 
         delete_after=Messages.DEFAULT_TIMEOUT
     )
 
