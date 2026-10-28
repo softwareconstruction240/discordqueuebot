@@ -79,6 +79,7 @@ async def _verify_permissions(interaction: discord.Interaction):
         ("Read Message History", current_permissions.read_message_history),
         ("Manage Messages", current_permissions.manage_messages),
         ("Manage Roles", current_permissions.manage_roles),
+        ("Manage Nicknames", current_permissions.manage_nicknames),
         ("Connect", current_permissions.connect),
         ("Move Members", current_permissions.move_members),
         ("Mute Members", current_permissions.mute_members),

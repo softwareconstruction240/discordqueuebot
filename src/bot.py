@@ -1,26 +1,28 @@
-from ui.helpers.constants import Roles
-from data_access.queue_history_dao import set_all_as_finished
+import asyncio
+import os
+import random
+from datetime import UTC, datetime
+
 import discord
 from discord import app_commands
 from discord.utils import get
+from dotenv import load_dotenv
+
+from data_access.config_dao import auto_queue_scheduler
+from data_access.db_manager import db_manager
+from data_access.queue_history_dao import (
+    get_students_not_finished,
+    set_all_as_finished,
+    set_time_finished,
+)
+from data_access.server_info_dao import get_id
 from help_queue import HelpQueue
+from records import QueueEntry, format_phase
+from server_script import setup_server, takedown
+from ui.helpers.constants import Channels, Roles
+from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
 from ui.views.queue_view import QueueView
 from ui.views.ta_view import TAView
-from ui.helpers.constants import Channels
-from ui.helpers.discord_helpers import update_queue_messages, count_total_tas_in_voice
-from server_script import setup_server, takedown
-from records import QueueEntry, format_phase
-from datetime import datetime, UTC
-from data_access.db_manager import db_manager
-from data_access.queue_history_dao import set_time_finished, get_students_not_finished
-from data_access.config_dao import auto_queue_scheduler
-from data_access.server_info_dao import get_id
-
-import os
-import random
-import asyncio
-from typing import Optional
-from dotenv import load_dotenv
 
 load_dotenv("./resources/.env")
 
@@ -38,7 +40,7 @@ class Bot(discord.Client):
         self.queue: HelpQueue = HelpQueue()
         self.queue_status_message_id: int | None = None
         self.help_queue_count_message_id: int | None = None
-        self._player_task: Optional[asyncio.Task] = None
+        self._player_task: asyncio.Task | None = None
         self.help_map: map[str, list[tuple[int, int]]] = {}
 
     async def setup_hook(self):
@@ -126,11 +128,11 @@ class Bot(discord.Client):
 
         # queue empty, disconnect
         try:
-            for guild in self.guilds:
-                if guild.voice_client:
-                    await guild.voice_client.disconnect()
-        except Exception:
-            pass
+            for joined_guild in self.guilds:
+                if joined_guild.voice_client:
+                    await joined_guild.voice_client.disconnect()
+        except Exception as e:
+            print("Error!" + e.with_traceback)
 
         self._player_task = None
 
@@ -149,7 +151,10 @@ class Bot(discord.Client):
         # compute expected wait time using recent queue history, available tas, and queue size
         num_tas = await count_total_tas_in_voice(guild=guild)
 
-        from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
+        from service.queue_history_service import (
+            NoTasOnlineError,
+            calculate_expected_wait_time,
+        )
         async with self.queue.lock:
             queue_size = len(self.queue.entries)
         available_tas = num_tas - len(self.help_map.keys())
@@ -273,7 +278,7 @@ class Bot(discord.Client):
 
                 # add offline TAs to the list of TAs to process
                 offline_tas = []
-                for name in self.help_map.keys():
+                for name in self.help_map:
                     if name not in online_ta_names:
                         offline_tas.append(name)
                 
@@ -344,12 +349,12 @@ async def setup(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         await setup_server(interaction)
+        await interaction.followup.send("Setup complete! Bot is ready to go!")
     except PermissionError as e:
         await interaction.followup.send(str(e))
     except Exception as e:
         await interaction.followup.send("Some kind of unknown error occured!")
         raise e
-    await interaction.followup.send("Setup complete! Bot is ready to go!")
 
 @bot.tree.command(name="reset")
 async def reset(interaction: discord.Interaction):

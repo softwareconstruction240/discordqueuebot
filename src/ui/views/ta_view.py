@@ -2,15 +2,32 @@ from typing import Optional
 
 import discord
 from discord.utils import get
-from data_access.queue_history_dao import set_time_finished, add_queue_history_item, get_queue_history_as_csv
+
 from data_access.bot_incidents_dao import get_last_incident_info
+from data_access.config_dao import get_config_data, remove_saturday_hours
+from data_access.queue_history_dao import (
+    add_queue_history_item,
+    get_queue_history_as_csv,
+    set_time_finished,
+)
 from data_access.server_info_dao import get_id
-from data_access.config_dao import remove_saturday_hours, get_config_data
 from data_access.students_dao import get_registered_name
 from records import QueueEntry, format_phase
-from ui.modals import ClearConfirmModal, RemoveConfirmModal, EditQueueHoursModal, EditMeetingHoursModal, EditDevotionalTimeModal, EditSaturdayHoursModal
 from ui.helpers.constants import Channels, Messages, Roles
-from ui.helpers.discord_helpers import move_to_breakout, notify_next_if_changed, update_queue_messages, return_to_online_ta_channel
+from ui.helpers.discord_helpers import (
+    move_to_breakout,
+    notify_next_if_changed,
+    return_to_online_ta_channel,
+    update_queue_messages,
+)
+from ui.modals import (
+    ClearConfirmModal,
+    EditDevotionalTimeModal,
+    EditMeetingHoursModal,
+    EditQueueHoursModal,
+    EditSaturdayHoursModal,
+    RemoveConfirmModal,
+)
 
 
 class RemoveStudentView(discord.ui.View):
@@ -116,7 +133,7 @@ class TAQueueControls2(discord.ui.ActionRow[discord.ui.LayoutView]):
 
 
 async def confirm_help(interaction: discord.Interaction, passoff_only: bool = False, online_only: bool = False, error_msg: str = "Queue is empty."):
-    if (interaction.user.name in interaction.client.help_map.keys()):
+    if (interaction.user.name in interaction.client.help_map):
         await interaction.response.send_message(
             "You are already helping at least one student. Are you sure you want to help another one at the same time?",
             view=MultiHelpView(passoff_only, online_only, error_msg), ephemeral=True, delete_after=Messages.DEFAULT_TIMEOUT
@@ -130,7 +147,7 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
     msg: discord.InteractionCallbackResponse = await interaction.response.defer(thinking=True, ephemeral=True)
     front_before = await interaction.client.queue.get_front()
 
-    entry: Optional[QueueEntry] = await interaction.client.queue.next(passoff_only=passoff_only, online_only=online_only)
+    entry: QueueEntry | None = await interaction.client.queue.next(passoff_only=passoff_only, online_only=online_only)
 
     if not entry:
         msg = await interaction.followup.send(error_msg, ephemeral=True, wait=True)
@@ -142,7 +159,7 @@ async def help_next_student(interaction: discord.Interaction, passoff_only: bool
     await msg.resource.delete()
 
 
-async def dequeue_student(interaction: discord.Interaction, front_before: Optional[QueueEntry], entry: QueueEntry):
+async def dequeue_student(interaction: discord.Interaction, front_before: QueueEntry | None, entry: QueueEntry):
     student: discord.User = await interaction.guild.fetch_member(entry.user_id)
     new_entry = (await add_queue_history_item(entry, student, interaction.user.name), entry.user_id)
     if interaction.user.name in interaction.client.help_map:
@@ -153,7 +170,7 @@ async def dequeue_student(interaction: discord.Interaction, front_before: Option
     await move_to_breakout(interaction, entry)
 
     await interaction.channel.send(
-        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=get_registered_name(student.id)), 
+        Messages.NOW_HELPING_TEMPLATE.format(ta=interaction.user.display_name, student=await get_registered_name(student.id)), 
         delete_after=Messages.DEFAULT_TIMEOUT
     )
 
@@ -288,7 +305,6 @@ class TAQueueInformation(discord.ui.ActionRow[discord.ui.LayoutView]):
 
         msg = await interaction.followup.send(message, ephemeral=True, wait=True)
         await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
-
 
     @discord.ui.button(label="See Queue History", style=discord.ButtonStyle.secondary, custom_id="queue_history", emoji="🏛️")
     async def display_queue_history(self, interaction: discord.Interaction, button: discord.ui.Button):
