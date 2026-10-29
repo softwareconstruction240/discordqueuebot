@@ -17,131 +17,18 @@ from ui.helpers.discord_helpers import notify_next_if_changed, update_queue_mess
 from ui.helpers.queue_helpers import sanitize_details
 
 
-class HelpModal(discord.ui.Modal, title="Request Help"):
-
-
+class QueueRequestModal(discord.ui.Modal, title="Queue Request"):
     name = discord.ui.TextInput(
         label="Your name (as it appears in Canvas)",
         placeholder="John D. Fortnite",
         max_length=100
     )
 
-    phase_label = discord.ui.Label(text="Pick the phase you need help with", component=discord.ui.Select(min_values=1, max_values=1, options=[
-        discord.SelectOption(label="Phase 0", value="0"),
-        discord.SelectOption(label="Phase 1", value="1"),
-        discord.SelectOption(label="Phase 2", value="2"),
-        discord.SelectOption(label="Phase 3", value="3"),
-        discord.SelectOption(label="Phase 4", value="4"),
-        discord.SelectOption(label="Phase 5", value="5"),
-        discord.SelectOption(label="Phase 6", value="6"),
-        discord.SelectOption(label="Programming Exam", value="E"),
-        discord.SelectOption(label="GitHub Repository Assignment", value="G"),
-        discord.SelectOption(label="Misc", value="?")
-    ]))
-
-    display = discord.ui.TextDisplay(   
-        content="Loading data..."
-    )
-
-
-    question = discord.ui.TextInput(
-        label="What do you need help with?",
-        placeholder="Please enter more than just the phase you are currently working on :)",
-        style=discord.TextStyle.paragraph,
-        max_length=300
-    )
-
     online_label = discord.ui.Label(
-        text="Where are you?", 
+        text="Where are you?",
         component=discord.ui.Select(
-            min_values=1, 
-            max_values=1, 
-            options=[
-                discord.SelectOption(label="Remote", value="o"),
-                discord.SelectOption(label="TA Office (1066 TMCB)", value="p")
-            ]
-        )
-    )
-
-    def __init__(self, times_helped: int, default_name: str | None = None):
-        super().__init__()
-        if default_name:
-            self.name.default = default_name
-        display_text = (
-            f"You've been helped {times_helped} time{'s' if times_helped != 1 else ''} today."
-        )
-        if times_helped >= 2:
-            display_text += (
-                "\nWarning: the max times you can be helped in a day is 3, "
-                "but TAs may still help you if they think it is necessary."
-            )
-        self.display.content = display_text
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        phase_select: discord.ui.Select = self.phase_label.component
-        selected_phase = phase_select.values[0]
-
-        online_select: discord.ui.Select = self.online_label.component
-        selected_location = online_select.values[0]
-        
-        student_name = self.name.value.strip()
-        await set_registered_name(interaction.user.id, student_name)
-        try:
-            await interaction.user.edit(nick=student_name)
-        except Exception as e:
-            print(f"Could not update nickname for {interaction.user.display_name}: {e}")
-
-        await interaction.client.queue_handler(
-            interaction,
-            sanitize_details(self.question.value),
-            False,
-            selected_location == "p",
-            student_name,
-            selected_phase
-        )
-
-        times_helped = await get_times_helped_today(interaction.user.id)
-        mode = "In-person" if selected_location == "p" else "Online"
-        pos = await interaction.client.queue.get_position(interaction.user.id)
-
-        waiting_room_id = await get_id(Channels.WAITING_ROOM_NAME, interaction.guild.id)
-        waiting_room: discord.VoiceChannel = get(interaction.guild.voice_channels, id=waiting_room_id)
-
-        msg = await interaction.followup.send(
-            f"You are #{pos} in the queue.{f" Please join the {waiting_room.mention} voice channel." if selected_location != "P" else ""}",
-            ephemeral=True,
-            wait=True
-        )
-
-        channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
-        ta_channel: discord.TextChannel = get(interaction.guild.channels, id=channel_id)
-        formatted_p = format_phase(selected_phase)
-        await ta_channel.send(
-            f"{student_name} (<@!{interaction.user.id}>) has joined the help queue - {mode} - {formatted_p} - {sanitize_details(self.question.value)} "
-            f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
-            delete_after=30
-        )
-
-        await msg.delete(delay=60)
-
-class PassoffModal(discord.ui.Modal, title="Request Passoff"):
-
-    name = discord.ui.TextInput(
-        label="Your name (as it appears in Canvas)",
-        placeholder="John D. Fortnite",
-        max_length=100
-    )
-    phase_label = discord.ui.Label(text="Pick the phase you will be passing off", component=discord.ui.Select(min_values=1, max_values=1, options=[
-        discord.SelectOption(label="Phase 5", value="5"),
-        discord.SelectOption(label="Phase 6", value="6"),
-    ]))
-
-    online_label = discord.ui.Label(
-        text="Where are you?", 
-        component=discord.ui.Select(
-            min_values=1, 
-            max_values=1, 
+            min_values=1,
+            max_values=1,
             options=[
                 discord.SelectOption(label="Remote", value="o"),
                 discord.SelectOption(label="TA Office (1066 TMCB)", value="p")
@@ -166,38 +53,154 @@ class PassoffModal(discord.ui.Modal, title="Request Passoff"):
         await set_registered_name(interaction.user.id, student_name)
         try:
             await interaction.user.edit(nick=student_name)
-        except Exception as e:
+        except discord.HTTPException as e:
             print(f"Could not update nickname for {interaction.user.display_name}: {e}")
 
         await interaction.client.queue_handler(
             interaction,
-            "Passoff",
-            True,
-            selected_location == "P",
+            self.queue_details,
+            self.is_passoff,
+            selected_location == "p",
             student_name,
             selected_phase
         )
 
-        mode = "In Person" if selected_location == "P" else "Online"
         pos = await interaction.client.queue.get_position(interaction.user.id)
 
         waiting_room_id = await get_id(Channels.WAITING_ROOM_NAME, interaction.guild.id)
-        waiting_room = get(interaction.guild.voice_channels, id=waiting_room_id)
+        waiting_room: discord.VoiceChannel = get(interaction.guild.voice_channels, id=waiting_room_id)
+        voice_message = (
+            f" Please join the {waiting_room.mention} voice channel."
+            if selected_location != "p"
+            else ""
+        )
+
         msg = await interaction.followup.send(
-            f"You are #{pos} in the queue.{f" Please join the {waiting_room.mention} voice channel." if selected_location != "P" else ""}",
+            f"You are #{pos} in the queue.{voice_message}",
             ephemeral=True,
             wait=True
         )
 
         channel_id = await get_id(Channels.TA_TEXT_CHANNEL_NAME, interaction.guild.id)
         ta_channel: discord.TextChannel = get(interaction.guild.text_channels, id=channel_id)
-        formatted_p = format_phase(selected_phase)
+        await self.send_ta_notification(
+            ta_channel,
+            interaction,
+            student_name,
+            selected_phase,
+            selected_location,
+        )
+
+        await msg.delete(delay=60)
+
+    @property
+    def queue_details(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def is_passoff(self) -> bool:
+        raise NotImplementedError
+
+    async def send_ta_notification(
+        self,
+        ta_channel: discord.TextChannel,
+        interaction: discord.Interaction,
+        student_name: str,
+        selected_phase: str,
+        selected_location: str,
+    ) -> None:
+        raise NotImplementedError
+
+
+class HelpModal(QueueRequestModal, title="Request Help"):
+    phase_label = discord.ui.Label(text="Pick the phase you need help with", component=discord.ui.Select(min_values=1, max_values=1, options=[
+        discord.SelectOption(label="Phase 0", value="0"),
+        discord.SelectOption(label="Phase 1", value="1"),
+        discord.SelectOption(label="Phase 2", value="2"),
+        discord.SelectOption(label="Phase 3", value="3"),
+        discord.SelectOption(label="Phase 4", value="4"),
+        discord.SelectOption(label="Phase 5", value="5"),
+        discord.SelectOption(label="Phase 6", value="6"),
+        discord.SelectOption(label="Programming Exam", value="E"),
+        discord.SelectOption(label="GitHub Repository Assignment", value="G"),
+        discord.SelectOption(label="Misc", value="?")
+    ]))
+
+    display = discord.ui.TextDisplay(content="Loading data...")
+
+    question = discord.ui.TextInput(
+        label="What do you need help with?",
+        placeholder="Please enter more than just the phase you are currently working on :)",
+        style=discord.TextStyle.paragraph,
+        max_length=300
+    )
+
+    def __init__(self, times_helped: int, default_name: str | None = None):
+        super().__init__(default_name)
+        display_text = (
+            f"You've been helped {times_helped} time{'s' if times_helped != 1 else ''} today."
+        )
+        if times_helped >= 2:
+            display_text += (
+                "\nWarning: the max times you can be helped in a day is 3, "
+                "but TAs may still help you if they think it is necessary."
+            )
+        self.display.content = display_text
+
+    @property
+    def queue_details(self) -> str:
+        return sanitize_details(self.question.value)
+
+    @property
+    def is_passoff(self) -> bool:
+        return False
+
+    async def send_ta_notification(
+        self,
+        ta_channel: discord.TextChannel,
+        interaction: discord.Interaction,
+        student_name: str,
+        selected_phase: str,
+        selected_location: str,
+    ) -> None:
+        times_helped = await get_times_helped_today(interaction.user.id)
+        mode = "In-person" if selected_location == "p" else "Online"
         await ta_channel.send(
-            f"{student_name} (<@!{interaction.user.id}>) has requested a passoff - {mode} - {formatted_p}",
+            f"{student_name} (<@!{interaction.user.id}>) has joined the help queue - {mode} - "
+            f"{format_phase(selected_phase)} - {self.queue_details} "
+            f"(helped {times_helped} time{'s' if times_helped != 1 else ''} today)",
             delete_after=30
         )
-        await msg.delete(delay=60)
-                
+
+
+class PassoffModal(QueueRequestModal, title="Request Passoff"):
+    phase_label = discord.ui.Label(text="Pick the phase you will be passing off", component=discord.ui.Select(min_values=1, max_values=1, options=[
+        discord.SelectOption(label="Phase 5", value="5"),
+        discord.SelectOption(label="Phase 6", value="6"),
+    ]))
+
+    @property
+    def queue_details(self) -> str:
+        return "Passoff"
+
+    @property
+    def is_passoff(self) -> bool:
+        return True
+
+    async def send_ta_notification(
+        self,
+        ta_channel: discord.TextChannel,
+        interaction: discord.Interaction,
+        student_name: str,
+        selected_phase: str,
+        selected_location: str,
+    ) -> None:
+        mode = "In Person" if selected_location == "p" else "Online"
+        await ta_channel.send(
+            f"{student_name} (<@!{interaction.user.id}>) has requested a passoff - "
+            f"{mode} - {format_phase(selected_phase)}",
+            delete_after=30
+        )
 
 class BotIssueModal(discord.ui.Modal, title="Report Bot Problem"):
     description = discord.ui.TextInput(
