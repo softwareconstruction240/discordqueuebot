@@ -1,4 +1,5 @@
 import aiomysql
+
 from data_access.db_manager import db_manager
 
 
@@ -28,8 +29,8 @@ async def set_registered_name(discord_id: int, name: str) -> None:
             cursor: aiomysql.Cursor
             await cursor.execute(
                 """INSERT INTO students (discord_id, registered_name)
-                VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE registered_name = VALUES(registered_name)
+                VALUES (%s, %s) as new
+                ON DUPLICATE KEY UPDATE registered_name = new.registered_name
                 """,
                 (discord_id, name)
             )
