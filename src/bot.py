@@ -3,6 +3,7 @@ import os
 import random
 from datetime import UTC, datetime
 
+import aiomysql
 import discord
 from discord import app_commands
 from discord.utils import get
@@ -60,10 +61,9 @@ class Bot(discord.Client):
         for guild in self.guilds:
             await update_queue_messages(self, guild)
         # ensure player task isn't left running accidentally
-        if self._player_task is None and getattr(self.queue, 'entries', None):
-            # start player only if queue not empty
-            if len(self.queue.entries) > 0:
-                self._player_task = asyncio.create_task(self._play_notifications())
+        if self._player_task is None and getattr(self.queue, 'entries', None) and len(self.queue.entries) > 0:
+            # start player only if queue not empty and not started yet
+            self._player_task = asyncio.create_task(self._play_notifications())
 
     async def close(self):
         self.queue.is_open = False
@@ -80,10 +80,7 @@ class Bot(discord.Client):
 
     async def _play_notifications(self, guild: discord.Guild) -> None:
         """Join TA voice channel and play random mp3 from resources once per minute until queue empty."""
-        try:
-            resources_dir = os.path.join(os.path.dirname(__file__), "resources")
-        except Exception:
-            resources_dir = None
+        resources_dir = os.path.join(os.path.dirname(__file__), "resources")
 
         while True:
             async with self.queue.lock:
@@ -122,8 +119,8 @@ class Bot(discord.Client):
 
                 # wait one minute between plays
                 await asyncio.sleep(60)
-            except Exception as e:
-                print("Error!" + e.with_traceback(asyncio.CancelledError))
+            except (TimeoutError, discord.DiscordException, OSError) as e:
+                print(f"Notification playback error: {e}")
                 await asyncio.sleep(60)
 
         # queue empty, disconnect
@@ -131,8 +128,8 @@ class Bot(discord.Client):
             for joined_guild in self.guilds:
                 if joined_guild.voice_client:
                     await joined_guild.voice_client.disconnect()
-        except Exception as e:
-            print("Error!" + e.with_traceback)
+        except discord.DiscordException as e:
+            print(f"Voice disconnect error: {e}")
 
         self._player_task = None
 
@@ -259,7 +256,7 @@ class Bot(discord.Client):
                     await update_queue_messages(self, guild)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except (discord.DiscordException, aiomysql.Error) as e:
                 print(f"Queue refresh task error: {e}")
 
     async def _refresh_help_map(self) -> None:
@@ -290,7 +287,7 @@ class Bot(discord.Client):
                         await set_time_finished(tableid)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except aiomysql.Error as e:
                 print(f"Refresh Help map task error: {e}")
 
 
@@ -352,9 +349,9 @@ async def setup(interaction: discord.Interaction):
         await interaction.followup.send("Setup complete! Bot is ready to go!")
     except PermissionError as e:
         await interaction.followup.send(str(e))
-    except Exception as e:
+    except (discord.DiscordException, aiomysql.Error):
         await interaction.followup.send("Some kind of unknown error occured!")
-        raise e
+        raise
 
 @bot.tree.command(name="reset")
 async def reset(interaction: discord.Interaction):

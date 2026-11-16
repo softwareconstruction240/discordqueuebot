@@ -1,8 +1,10 @@
+from datetime import UTC, datetime, timedelta
+from typing import Optional
+
 import aiomysql
 from aiomysql.cursors import DictCursor
+
 from data_access.db_manager import db_manager
-from datetime import datetime, timedelta, UTC
-from typing import Optional
 
 
 async def record_bot_issue(username: str, issue: str) -> None:

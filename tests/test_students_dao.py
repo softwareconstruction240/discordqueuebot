@@ -1,7 +1,10 @@
-import test_setup
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import test_setup
+
 from src.data_access.students_dao import get_registered_name, set_registered_name
+
 
 class TestStudentsDAO(unittest.IsolatedAsyncioTestCase):
 

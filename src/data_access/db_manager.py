@@ -1,8 +1,10 @@
-import aiomysql
 import warnings
 from datetime import datetime
-from ui.helpers.constants import Config
 from os import getenv
+
+import aiomysql
+
+from ui.helpers.constants import Config
 
 warnings.filterwarnings("ignore", message=r".*exists.*")
 
@@ -127,8 +129,9 @@ class _DBManager:
                     await cursor.execute(
                         "ALTER TABLE queue_history CHANGE COLUMN student_discord_name student_name VARCHAR(100) NOT NULL"
                     )
-                except Exception:
-                    pass  # Column already renamed or doesn't exist
+                except aiomysql.Error as e:
+                    # Column already renamed or doesn't exist
+                    print(e)
 
                 await cursor.execute(
                     """

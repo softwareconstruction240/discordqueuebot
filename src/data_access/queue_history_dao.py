@@ -1,12 +1,14 @@
-import aiomysql
-from aiomysql.cursors import DictCursor
 import csv
-from datetime import datetime, UTC
-import discord
 import io
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
+import aiomysql
+import discord
+from aiomysql.cursors import DictCursor
+
 from data_access.db_manager import db_manager
 from records import QueueEntry
-from zoneinfo import ZoneInfo
 
 
 async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.User, ta: str) -> int:
@@ -98,12 +100,12 @@ async def get_queue_history_as_csv() -> discord.File:
                 items.append(_to_denver_time(row["time_finished"]))
                 
                 # calculate time in queue
-                enqueue_time = row["enqueue_time"]
-                dequeue_time = row["dequeue_time"]
+                enqueue_time = _as_utc(row["enqueue_time"])
+                dequeue_time = _as_utc(row["dequeue_time"])
                 items.append(dequeue_time-enqueue_time)
                 #calculate time helped
                 try: 
-                    time_finished: datetime = row["time_finished"]
+                    time_finished = _as_utc(row["time_finished"])
                     items.append(time_finished - dequeue_time)
                 except TypeError:
                     items.append("None")
@@ -157,7 +159,15 @@ async def get_times_helped_today(user_id: int) -> int:
             row = await cursor.fetchone()
             return int(row["COUNT(*)"]) if row else 0
 
-def _to_denver_time(time: datetime) -> datetime | None:
+def _as_utc(time: datetime | None) -> datetime | None:
     if time is None:
         return None
-    return time.astimezone(ZoneInfo("America/Denver"))
+    if time.tzinfo is None:
+        return time.replace(tzinfo=UTC)
+    return time.astimezone(UTC)
+
+
+def _to_denver_time(time: datetime | None) -> datetime | None:
+    if time is None:
+        return None
+    return _as_utc(time).astimezone(ZoneInfo("America/Denver"))

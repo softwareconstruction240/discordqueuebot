@@ -1,5 +1,7 @@
-from datetime import timedelta, UTC
-from data_access.queue_history_dao import get_queue_history
+from datetime import timedelta
+
+from data_access.queue_history_dao import _as_utc, get_queue_history
+
 
 class NoTasOnlineError(Exception):
     pass
@@ -41,8 +43,8 @@ async def calculate_expected_wait_time(
 
     total_wait = timedelta()
     for history_item in recent[:samples]:
-        enqueue_time = history_item["enqueue_time"].replace(tzinfo=UTC)
-        dequeue_time = history_item["dequeue_time"].replace(tzinfo=UTC)
+        enqueue_time = _as_utc(history_item["enqueue_time"])
+        dequeue_time = _as_utc(history_item["dequeue_time"])
         total_wait += dequeue_time - enqueue_time
 
     average_wait: timedelta = total_wait / samples

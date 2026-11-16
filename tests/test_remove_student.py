@@ -1,14 +1,13 @@
 #This import looks redundant but is needed to run tests
-import test_setup
-
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import discord
+import test_setup
 
-from src.records import QueueEntry
 from src.help_queue import HelpQueue
+from src.records import QueueEntry
 
 """This file conducts tests on the funcitonality of the Remove button using Mocks to simulate interactions with Discord's APi."""
 # ==========================================================
