@@ -1,12 +1,14 @@
-import aiomysql
-from aiomysql.cursors import DictCursor
 import csv
-from datetime import datetime, UTC
-import discord
 import io
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
+import aiomysql
+import discord
+from aiomysql.cursors import DictCursor
+
 from data_access.db_manager import db_manager
 from records import QueueEntry
-from zoneinfo import ZoneInfo
 
 
 async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.User, ta: str) -> int:
@@ -22,7 +24,7 @@ async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.
             cursor: aiomysql.Cursor
             await cursor.execute(
                 """INSERT INTO queue_history (
-                    student_discord_name,
+                    student_name,
                     student_discord_id,
                     ta_name,
                     phase,
@@ -33,7 +35,7 @@ async def add_queue_history_item(queue_entry: QueueEntry, student_user: discord.
                     in_person
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (student_user.display_name,
+                """, (queue_entry.student_name,
                     student_user.id,
                     ta, 
                     queue_entry.phase,
@@ -84,7 +86,8 @@ async def get_queue_history_as_csv() -> discord.File:
             for row in await cursor.fetchall():
                 items:list = []
                 items.append(row["id"])
-                items.append(row["student_discord_name"])
+                items.append(row["student_name"])
+                items.append(row["student_discord_id"])
                 items.append(row["TA_name"])
                 items.append(row["phase"])
                 items.append(row["question"])
@@ -97,12 +100,12 @@ async def get_queue_history_as_csv() -> discord.File:
                 items.append(_to_denver_time(row["time_finished"]))
                 
                 # calculate time in queue
-                enqueue_time = row["enqueue_time"]
-                dequeue_time = row["dequeue_time"]
+                enqueue_time = _as_utc(row["enqueue_time"])
+                dequeue_time = _as_utc(row["dequeue_time"])
                 items.append(dequeue_time-enqueue_time)
                 #calculate time helped
                 try: 
-                    time_finished: datetime = row["time_finished"]
+                    time_finished = _as_utc(row["time_finished"])
                     items.append(time_finished - dequeue_time)
                 except TypeError:
                     items.append("None")
@@ -129,12 +132,12 @@ async def get_queue_history() -> list:
 async def get_students_not_finished() -> list[dict]:
     """Gets all students without a time_finished in their queue history
     Returns:
-        A list of dictionaries with keys 'student_discord_name', 'TA_name', 'question', and 'phase'"""
+        A list of dictionaries with keys 'student_name', 'TA_name', 'question', and 'phase'"""
     async with db_manager.get_conn() as conn:
         conn: aiomysql.Connection
         async with conn.cursor(DictCursor) as cursor:
             cursor: DictCursor
-            await cursor.execute("SELECT student_discord_name, TA_name, question, phase FROM queue_history WHERE time_finished IS NULL")
+            await cursor.execute("SELECT student_name, TA_name, question, phase FROM queue_history WHERE time_finished IS NULL")
             return [row for row in await cursor.fetchall()]
 
 async def set_all_as_finished() -> None:
@@ -156,7 +159,15 @@ async def get_times_helped_today(user_id: int) -> int:
             row = await cursor.fetchone()
             return int(row["COUNT(*)"]) if row else 0
 
-def _to_denver_time(time: datetime) -> datetime | None:
+def _as_utc(time: datetime | None) -> datetime | None:
     if time is None:
         return None
-    return time.astimezone(ZoneInfo("America/Denver"))
+    if time.tzinfo is None:
+        return time.replace(tzinfo=UTC)
+    return time.astimezone(UTC)
+
+
+def _to_denver_time(time: datetime | None) -> datetime | None:
+    if time is None:
+        return None
+    return _as_utc(time).astimezone(ZoneInfo("America/Denver"))

@@ -1,8 +1,10 @@
-import aiomysql
 import warnings
 from datetime import datetime
-from ui.helpers.constants import Config
 from os import getenv
+
+import aiomysql
+
+from ui.helpers.constants import Config
 
 warnings.filterwarnings("ignore", message=r".*exists.*")
 
@@ -94,12 +96,21 @@ class _DBManager:
                     """
                 )        
 
+                await cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS students (
+                        discord_id BIGINT PRIMARY KEY,
+                        registered_name VARCHAR(100) NOT NULL
+                    )
+                    """
+                )
+
                 # dequeue_time refers to the time the TA begins helping the student, as the student is no longer waiting in the queue
                 await cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS queue_history (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        student_discord_name VARCHAR(100) NOT NULL,
+                        student_name VARCHAR(100) NOT NULL,
                         student_discord_id BIGINT,
                         TA_name VARCHAR(100) NOT NULL,
                         phase VARCHAR(1) DEFAULT '?',
@@ -112,6 +123,15 @@ class _DBManager:
                         )
                     """
                 )
+
+                # Migration: rename old column for existing databases
+                try:
+                    await cursor.execute(
+                        "ALTER TABLE queue_history CHANGE COLUMN student_discord_name student_name VARCHAR(100) NOT NULL"
+                    )
+                except aiomysql.Error as e:
+                    # Column already renamed or doesn't exist
+                    print(e)
 
                 await cursor.execute(
                     """

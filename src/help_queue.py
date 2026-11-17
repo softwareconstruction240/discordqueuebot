@@ -1,8 +1,8 @@
 import asyncio
-from discord.utils import get
-from typing import Optional
+
 from data_access.queue_history_dao import get_times_helped_today
 from records import QueueEntry, format_phase
+
 
 class HelpQueue:
     def __init__(self):
@@ -20,7 +20,7 @@ class HelpQueue:
                 e for e in self.entries if e.user_id != user_id
             ]
 
-    async def get_position(self, user_id: int) -> Optional[int]:
+    async def get_position(self, user_id: int) -> int | None:
         async with self.lock:
             for i, e in enumerate(self.entries):
                 if e.user_id == user_id:
@@ -34,7 +34,7 @@ class HelpQueue:
                     return True
         return False
 
-    async def next(self, passoff_only=False, online_only=False) -> Optional[QueueEntry]:
+    async def next(self, passoff_only=False, online_only=False) -> QueueEntry | None:
         async with self.lock:
             if passoff_only:
                 for i, e in enumerate(self.entries):
@@ -65,7 +65,7 @@ class HelpQueue:
                 times_helped = await get_times_helped_today(e.user_id)
                 display_name = e.username
                 if e.student_name:
-                    display_name = f"{e.username} ({e.student_name})"
+                    display_name = f"{e.student_name} (<@!{e.user_id}>)"
                 phase_str = format_phase(getattr(e, "phase", "?"))
                 details_str = f" - {e.details}" if e.details and e.details != "Passoff" else ""
                 out.append(
@@ -75,7 +75,7 @@ class HelpQueue:
 
             return "\n".join(out)
         
-    async def get_front(self) -> Optional[QueueEntry]:
+    async def get_front(self) -> QueueEntry | None:
         async with self.lock:
             return self.entries[0] if self.entries else None
     

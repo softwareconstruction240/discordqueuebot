@@ -1,10 +1,12 @@
 import discord
 from discord.utils import get
+
 from data_access.server_info_dao import get_id, set_id
-from ui.views.queue_view import QueueView
-from ui.views.ta_view import TAView
 from ui.helpers.constants import Categories, Channels, Roles
 from ui.helpers.discord_helpers import update_queue_messages
+from ui.views.queue_view import QueueView
+from ui.views.ta_view import TAView
+
 
 async def setup_server(interaction: discord.Interaction):
     """Setup necessary channels, roles, and permissions needed for the bot to function properly.  
@@ -79,6 +81,7 @@ async def _verify_permissions(interaction: discord.Interaction):
         ("Read Message History", current_permissions.read_message_history),
         ("Manage Messages", current_permissions.manage_messages),
         ("Manage Roles", current_permissions.manage_roles),
+        ("Manage Nicknames", current_permissions.manage_nicknames),
         ("Connect", current_permissions.connect),
         ("Move Members", current_permissions.move_members),
         ("Mute Members", current_permissions.mute_members),

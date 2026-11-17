@@ -77,7 +77,7 @@ PORT=3306
 #### 6. In Installation:
  - In Installation Contexts, deselect `User Install`
  - In Install Link, Select `Discord Provided Link`
- - In Default Install Settings, for `Scopes` enable `applications.commands` and `bot`, and for `Permissions` select `Manage Channels`, `Manage Messages`, `Manage Roles`, `Move Members`, and `Mute Members`
+ - In Default Install Settings, for `Scopes` enable `applications.commands` and `bot`, and for `Permissions` select `Manage Channels`, `Manage Messages`, `Manage Roles`, `Move Members`, Manage Nicknames, and `Mute Members`
 
 
 #### 7. Open the Discord Provided link in your browser, and add the bot to your server.

@@ -1,5 +1,7 @@
-from data_access.db_manager import db_manager
 import aiomysql
+
+from data_access.db_manager import db_manager
+
 
 async def set_id(name: str, guild_id: int, id: int) -> None:
     async with db_manager.get_conn() as conn:

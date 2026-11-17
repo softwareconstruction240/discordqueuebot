@@ -1,10 +1,13 @@
 import discord
+
 from data_access.queue_history_dao import get_times_helped_today
-from ui.modals import HelpModal, PassoffModal, BotIssueModal
+from data_access.students_dao import get_registered_name
+from service.queue_history_service import NoTasOnlineError, calculate_expected_wait_time
 from ui.helpers.constants import Messages
 from ui.helpers.discord_helpers import count_total_tas_in_voice, update_queue_messages
 from ui.helpers.queue_helpers import can_join_queue
-from service.queue_history_service import calculate_expected_wait_time, NoTasOnlineError
+from ui.modals import BotIssueModal, HelpModal, PassoffModal
+
 
 class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Need Help", style=discord.ButtonStyle.primary, custom_id="need_help", emoji="🙏")
@@ -13,14 +16,16 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
             return
 
         today_help_count = await get_times_helped_today(interaction.user.id)
-        await interaction.response.send_modal(HelpModal(today_help_count))
+        registered_name = await get_registered_name(interaction.user.id)
+        await interaction.response.send_modal(HelpModal(today_help_count, default_name=registered_name))
 
     @discord.ui.button(label="Passoff", style=discord.ButtonStyle.success, custom_id="passoff", emoji="💪")
     async def passoff_btn(self, interaction: discord.Interaction, button):
         if not await can_join_queue(interaction):
             return
 
-        await interaction.response.send_modal(PassoffModal())
+        registered_name = await get_registered_name(interaction.user.id)
+        await interaction.response.send_modal(PassoffModal(default_name=registered_name))
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.danger, custom_id="leave_queue", emoji="🚪")
     async def leave_btn(self, interaction: discord.Interaction, button):
@@ -70,7 +75,7 @@ class QueueRequests(discord.ui.ActionRow[discord.ui.LayoutView]):
                     ephemeral=True,
                     wait=True
                 )
-                await msg.delete(Messages.DEFAULT_TIMEOUT)
+                await msg.delete(delay=Messages.DEFAULT_TIMEOUT)
             
 class EsotericCommands(discord.ui.ActionRow[discord.ui.LayoutView]):
     @discord.ui.button(label="Report Bot Problem", style=discord.ButtonStyle.secondary, custom_id="report_bot_problem", emoji="☢️")

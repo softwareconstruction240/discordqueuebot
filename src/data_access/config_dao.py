@@ -2,15 +2,15 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import aiomysql
-from aiomysql import DictCursor
 import discord
-from discord.utils import get
+from aiomysql import DictCursor
 from discord.ext import tasks
+from discord.utils import get
 
 from data_access.db_manager import db_manager
 from data_access.server_info_dao import get_id
-from ui.helpers.discord_helpers import update_queue_messages
 from ui.helpers.constants import Channels, Config
+from ui.helpers.discord_helpers import update_queue_messages
 
 
 async def _get_queue_times() -> tuple[datetime, datetime]:

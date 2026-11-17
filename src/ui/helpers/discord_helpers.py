@@ -1,10 +1,12 @@
-from ui.helpers.constants import Roles
-import discord
-from discord.utils import get as get
 from typing import Optional
-from records import QueueEntry
+
+import discord
+from discord.utils import get
+
 from data_access.server_info_dao import get_id
-from ui.helpers.constants import Channels, Messages
+from records import QueueEntry
+from ui.helpers.constants import Channels, Messages, Roles
+
 
 async def get_next_available_breakout(interaction: discord.Interaction):
     breakout_ids = []
@@ -21,7 +23,7 @@ async def get_next_available_breakout(interaction: discord.Interaction):
     return None
 
 
-def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta_role: discord.Role) -> int:
+def count_tas_in_voice_channel(voice_channel: discord.VoiceChannel | None, ta_role: discord.Role) -> int:
     """Return the number of unique TA users in a specific voice channel."""
     if voice_channel is None:
         return 0
@@ -29,7 +31,7 @@ def count_tas_in_voice_channel(voice_channel: Optional[discord.VoiceChannel], ta
     return sum(1 for member in voice_channel.members if ta_role in getattr(member, "roles", []))
 
 
-async def count_total_tas_in_voice(interaction: Optional[discord.Interaction] = None, guild: Optional[discord.Guild] = None, ta_role_name: str = "TA") -> int:
+async def count_total_tas_in_voice(interaction: discord.Interaction | None = None, guild: discord.Guild | None = None, ta_role_name: str = "TA") -> int:
     """Return the number of unique users with the TA role who are in any voice channel.
 
     Accepts either an `interaction` (and uses `interaction.guild`) or a `guild` directly.
@@ -52,10 +54,11 @@ async def safe_dm_user(client: discord.Client, user_id: int, message: str) -> No
     try:
         user = await client.fetch_user(user_id)
         await user.send(message)
-    except Exception:
+    except discord.DiscordException as e:
+        print(e)
         return
     
-async def notify_next_if_changed(client: discord.Client, before: Optional[QueueEntry]) -> None:
+async def notify_next_if_changed(client: discord.Client, before: QueueEntry | None) -> None:
     after = await client.queue.get_front()
     if before and after and before.user_id != after.user_id:
         await safe_dm_user(client, after.user_id, Messages.NEXT_IN_LINE_MSG)
@@ -81,7 +84,7 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
             in_person_channel = get(interaction.guild.voice_channels, id=channel_id)
             if ta.voice.channel.id not in [await get_id(breakout_name, interaction.guild.id) for breakout_name in Channels.BREAKOUT_NAMES]:
                 await ta.move_to(in_person_channel)
-        except Exception:
+        except discord.DiscordException:
             await ta.send(f"Because you weren't in the Online TAs voice channel, you need to join the {in_person_channel.mention} channel manually. Please do so now.")
 
     else:
@@ -95,12 +98,12 @@ async def move_to_breakout(interaction: discord.Interaction, entry: QueueEntry):
         try:
             await ta.move_to(breakout_channel)
             await ta.edit(mute=False)
-        except Exception:
+        except discord.DiscordException:
             await ta.send(f"Because you didn't join the Online TAs voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the student is waiting.")
 
         try:
             await student.move_to(breakout_channel)
-        except Exception:
+        except discord.DiscordException:
             await student.send(f"Because you didn't join the Waiting Room voice channel, you need to join {breakout_channel.mention} manually. Please do so now, the TA is waiting.")
 
 async def return_to_online_ta_channel(interaction: discord.Interaction):
