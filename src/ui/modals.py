@@ -18,6 +18,13 @@ from ui.helpers.queue_helpers import sanitize_details
 
 
 class QueueRequestModal(discord.ui.Modal, title="Queue Request"):
+    def __init__(self, default_name: str | None = None):
+        super().__init__()
+        if default_name:
+            self.name.default = default_name
+
+    display = discord.ui.TextDisplay(content="Loading data...")
+
     name = discord.ui.TextInput(
         label="Your name (as it appears in Canvas)",
         placeholder="John D. Fortnite",
@@ -30,16 +37,11 @@ class QueueRequestModal(discord.ui.Modal, title="Queue Request"):
             min_values=1,
             max_values=1,
             options=[
-                discord.SelectOption(label="Remote", value="o"),
+                discord.SelectOption(label="Online", value="o"),
                 discord.SelectOption(label="TA Office (1066 TMCB)", value="p")
             ]
         )
     )
-
-    def __init__(self, default_name: str | None = None):
-        super().__init__()
-        if default_name:
-            self.name.default = default_name
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -114,19 +116,18 @@ class QueueRequestModal(discord.ui.Modal, title="Queue Request"):
 
 class HelpModal(QueueRequestModal, title="Request Help"):
     phase_label = discord.ui.Label(text="Pick the phase you need help with", component=discord.ui.Select(min_values=1, max_values=1, options=[
+        discord.SelectOption(label="Programming Exam", value="E"),
+        discord.SelectOption(label="GitHub Repository Assignment", value="G"),
+        discord.SelectOption(label="Misc", value="?"),
         discord.SelectOption(label="Phase 0", value="0"),
         discord.SelectOption(label="Phase 1", value="1"),
         discord.SelectOption(label="Phase 2", value="2"),
         discord.SelectOption(label="Phase 3", value="3"),
         discord.SelectOption(label="Phase 4", value="4"),
         discord.SelectOption(label="Phase 5", value="5"),
-        discord.SelectOption(label="Phase 6", value="6"),
-        discord.SelectOption(label="Programming Exam", value="E"),
-        discord.SelectOption(label="GitHub Repository Assignment", value="G"),
-        discord.SelectOption(label="Misc", value="?")
+        discord.SelectOption(label="Phase 6", value="6")
     ]))
 
-    display = discord.ui.TextDisplay(content="Loading data...")
 
     question = discord.ui.TextInput(
         label="What do you need help with?",
@@ -174,6 +175,11 @@ class HelpModal(QueueRequestModal, title="Request Help"):
 
 
 class PassoffModal(QueueRequestModal, title="Request Passoff"):
+    def __init__(self, default_name: str | None = None):
+        super().__init__(default_name)
+        self.display.content = "**Passoff is for phases 5 and 6 only!**"
+
+    
     phase_label = discord.ui.Label(text="Pick the phase you will be passing off", component=discord.ui.Select(min_values=1, max_values=1, options=[
         discord.SelectOption(label="Phase 5", value="5"),
         discord.SelectOption(label="Phase 6", value="6"),
